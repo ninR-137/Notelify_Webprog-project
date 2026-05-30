@@ -68,7 +68,7 @@ public class AuthApiController {
 
 		try {
 			emailOtpService.sendSignupOtp(request.email(), request.username(), request.password());
-		} catch (IllegalStateException ex) {
+		} catch (RuntimeException ex) {
 			return ResponseEntity.status(503).body(new AuthResponse(false, "OTP email service is unavailable. Please try again later."));
 		}
 		return ResponseEntity.ok(new AuthResponse(true, "OTP sent to your email."));
@@ -162,7 +162,11 @@ public class AuthApiController {
 		if (request == null || isBlank(request.email()) || !request.email().contains("@")) {
 			return ResponseEntity.badRequest().body(new AuthResponse(false, "Please enter a valid email address."));
 		}
-		emailOtpService.sendPasswordResetEmail(request.email());
+		try {
+			emailOtpService.sendPasswordResetEmail(request.email());
+		} catch (RuntimeException ex) {
+			return ResponseEntity.status(503).body(new AuthResponse(false, "Password reset email service is unavailable. Please try again later."));
+		}
 		return ResponseEntity.ok(new AuthResponse(true, "Password reset email sent."));
 	}
 

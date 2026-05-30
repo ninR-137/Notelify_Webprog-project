@@ -193,6 +193,10 @@ public class NoteService {
 			  ul, ol { margin: 0 0 10px; padding-left: 22px; }
 			  li { margin: 2px 0; }
 			  a { color: #1d4ed8; text-decoration: underline; }
+			  hr { border: none; border-top: 1px solid #d1d5db; margin: 10px 0; }
+			  table { width: 100%%; border-collapse: collapse; margin: 8px 0 12px; font-size: 10pt; }
+			  th, td { border: 1px solid #d1d5db; padding: 5px 7px; text-align: left; }
+			  th { background: #f3f4f6; }
 			</style>
 			</head>
 			<body>
@@ -210,7 +214,8 @@ public class NoteService {
 		boolean inUl = false;
 		boolean inOl = false;
 
-		for (String line : lines) {
+		for (int i = 0; i < lines.length; i++) {
+			String line = lines[i];
 			String trimmed = line.trim();
 			if (trimmed.isEmpty()) {
 				if (inUl) {
@@ -222,6 +227,64 @@ public class NoteService {
 					inOl = false;
 				}
 				out.append("<p><br/></p>");
+				continue;
+			}
+
+			if (trimmed.matches("^-{3,}$")) {
+				if (inUl) {
+					out.append("</ul>");
+					inUl = false;
+				}
+				if (inOl) {
+					out.append("</ol>");
+					inOl = false;
+				}
+				out.append("<hr/>");
+				continue;
+			}
+
+			if (trimmed.contains("|") && i + 1 < lines.length && isTableDividerLine(lines[i + 1])) {
+				if (inUl) {
+					out.append("</ul>");
+					inUl = false;
+				}
+				if (inOl) {
+					out.append("</ol>");
+					inOl = false;
+				}
+
+				List<String> headers = parseTableCells(line);
+				out.append("<table><thead><tr>");
+				for (String header : headers) {
+					out.append("<th>").append(renderInline(header)).append("</th>");
+				}
+				out.append("</tr></thead>");
+
+				List<List<String>> rows = new ArrayList<>();
+				i += 2;
+				while (i < lines.length) {
+					String rowLine = lines[i];
+					String rowTrim = rowLine.trim();
+					if (rowTrim.isEmpty() || !rowTrim.contains("|")) {
+						i -= 1;
+						break;
+					}
+					rows.add(parseTableCells(rowLine));
+					i += 1;
+				}
+
+				if (!rows.isEmpty()) {
+					out.append("<tbody>");
+					for (List<String> row : rows) {
+						out.append("<tr>");
+						for (String cell : row) {
+							out.append("<td>").append(renderInline(cell)).append("</td>");
+						}
+						out.append("</tr>");
+					}
+					out.append("</tbody>");
+				}
+				out.append("</table>");
 				continue;
 			}
 
@@ -285,6 +348,29 @@ public class NoteService {
 			out.append("</ol>");
 		}
 		return out.toString();
+	}
+
+	private boolean isTableDividerLine(String line) {
+		if (line == null) {
+			return false;
+		}
+		return line.trim().matches("^\\|?\\s*:?-{3,}:?\\s*(\\|\\s*:?-{3,}:?\\s*)+\\|?$");
+	}
+
+	private List<String> parseTableCells(String line) {
+		String cleaned = line == null ? "" : line.trim();
+		if (cleaned.startsWith("|")) {
+			cleaned = cleaned.substring(1);
+		}
+		if (cleaned.endsWith("|")) {
+			cleaned = cleaned.substring(0, cleaned.length() - 1);
+		}
+		String[] parts = cleaned.split("\\|", -1);
+		List<String> cells = new ArrayList<>();
+		for (String part : parts) {
+			cells.add(part.trim());
+		}
+		return cells;
 	}
 
 	private String renderInline(String text) {

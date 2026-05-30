@@ -2337,17 +2337,31 @@
 
         var tag = node.tagName.toLowerCase();
         var text = Array.from(node.childNodes).map(inlineToMarkdown).join('');
+        var normalized = text.replace(/\u200b/g, '').replace(/\u00a0/g, ' ');
+        var hasVisibleText = normalized.trim().length > 0;
         if (tag === 'strong' || tag === 'b') {
+          if (!hasVisibleText) {
+            return '';
+          }
           return '**' + text + '**';
         }
         if (tag === 'em' || tag === 'i') {
+          if (!hasVisibleText) {
+            return '';
+          }
           return '*' + text + '*';
         }
         if (tag === 'u') {
+          if (!hasVisibleText) {
+            return '';
+          }
           return '<u>' + text + '</u>';
         }
         if (tag === 'a') {
           var href = node.getAttribute('href') || '';
+          if (!hasVisibleText || !href.trim()) {
+            return '';
+          }
           return '[' + text + '](' + href + ')';
         }
         if (tag === 'br') {
@@ -2504,6 +2518,25 @@
         return node;
       }
 
+      function isSelectionInsideVisualEditor() {
+        var selection = window.getSelection();
+        if (!selection || !selection.anchorNode) {
+          return false;
+        }
+        var node = selection.anchorNode.nodeType === Node.ELEMENT_NODE
+          ? selection.anchorNode
+          : selection.anchorNode.parentElement;
+        return !!(node && editorVisual.contains(node));
+      }
+
+      function isCommandActive(commandName) {
+        try {
+          return !!document.queryCommandState(commandName);
+        } catch (_) {
+          return false;
+        }
+      }
+
       function setToolbarButtonActiveState(activeMap) {
         toolbarButtons.forEach(function (btn) {
           var cmd = btn.dataset.cmd;
@@ -2519,6 +2552,11 @@
           return;
         }
 
+        if (!isSelectionInsideVisualEditor()) {
+          setToolbarButtonActiveState({});
+          return;
+        }
+
         var el = getVisualSelectionElement();
         if (!el) {
           setToolbarButtonActiveState({});
@@ -2526,11 +2564,11 @@
         }
 
         var active = {
-          bold: !!el.closest('strong,b'),
-          italic: !!el.closest('em,i'),
-          underline: !!el.closest('u'),
-          bullet: !!el.closest('ul'),
-          numbered: !!el.closest('ol'),
+          bold: isCommandActive('bold') || !!el.closest('strong,b'),
+          italic: isCommandActive('italic') || !!el.closest('em,i'),
+          underline: isCommandActive('underline') || !!el.closest('u'),
+          bullet: isCommandActive('insertUnorderedList') || !!el.closest('ul'),
+          numbered: isCommandActive('insertOrderedList') || !!el.closest('ol'),
           heading: !!el.closest('h4'),
           link: !!el.closest('a'),
           table: !!el.closest('table')
@@ -3324,6 +3362,9 @@
         }
         var mod = e.ctrlKey || e.metaKey;
         if (!mod) {
+          return;
+        }
+        if (isLivePreviewMode && !isSelectionInsideVisualEditor()) {
           return;
         }
         var key = String(e.key || '').toLowerCase();

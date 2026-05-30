@@ -716,6 +716,82 @@
     }
     .todo-progress-text { font-size: 12px; color: var(--muted); }
 
+    /* ---- Settings view ---- */
+    .settings-view {
+      display: none;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      align-content: start;
+    }
+    .settings-view.active { display: grid; }
+    .settings-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      box-shadow: var(--shadow-sm);
+    }
+    .settings-card h3 {
+      margin: 0 0 6px;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+    .settings-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .settings-field {
+      margin-top: 14px;
+      display: grid;
+      gap: 4px;
+    }
+    .settings-field label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .settings-value {
+      font-size: 14px;
+      color: var(--fg);
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+    .settings-actions {
+      margin-top: 16px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .settings-btn {
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--fg);
+      border-radius: 9px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .settings-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .settings-btn.primary {
+      border: none;
+      color: #fff;
+      background: var(--accent-gradient);
+      box-shadow: 0 3px 12px var(--accent-soft);
+    }
+    .settings-btn.danger {
+      border-color: color-mix(in oklch, var(--danger) 30%, var(--border));
+      color: var(--danger);
+      background: var(--danger-soft);
+    }
+    .settings-span-2 { grid-column: span 2; }
+
     /* ---- Todo widget (sidebar bottom) ---- */
     .todo-widget {
       padding: 12px 8px;
@@ -1339,6 +1415,8 @@
       }
       .todo-header { flex-direction: column; align-items: stretch; }
       .todo-filters { flex-wrap: wrap; }
+      .settings-view { grid-template-columns: 1fr; }
+      .settings-span-2 { grid-column: span 1; }
     }
     @media (max-width: 480px) {
       .search-wrap { width: 100%; order: 3; }
@@ -1582,7 +1660,7 @@
           </div>
         </div>
         <div class="topbar-right">
-          <div class="search-wrap">
+          <div class="search-wrap" id="searchWrap">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input type="search" id="searchInput" placeholder="Search notes..." />
           </div>
@@ -1602,7 +1680,7 @@
               </div>
             </div>
           </div>
-          <div class="view-toggle">
+          <div class="view-toggle" id="viewToggle">
             <button class="view-btn active" id="gridViewBtn" aria-label="Grid view">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
             </button>
@@ -1610,7 +1688,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
             </button>
           </div>
-          <div class="sort-wrap">
+          <div class="sort-wrap" id="sortWrap">
             <select class="sort-select" id="sortSelect">
               <option value="recent">Recent</option>
               <option value="alpha">A–Z</option>
@@ -1659,6 +1737,43 @@
           </div>
           <div class="todo-list" id="todoList"></div>
         </div>
+
+        <!-- Settings view -->
+        <div class="settings-view" id="settingsView">
+          <section class="settings-card">
+            <h3>Account</h3>
+            <p>Overview of your current signed-in profile.</p>
+            <div class="settings-field">
+              <label>Username</label>
+              <div class="settings-value" id="settingsName">User</div>
+            </div>
+            <div class="settings-field">
+              <label>Email</label>
+              <div class="settings-value" id="settingsEmail">user@notelify.app</div>
+            </div>
+          </section>
+
+          <section class="settings-card">
+            <h3>Appearance</h3>
+            <p>Customize your dashboard look and theme preference.</p>
+            <div class="settings-field">
+              <label>Current Theme</label>
+              <div class="settings-value" id="settingsThemeValue">Dark</div>
+            </div>
+            <div class="settings-actions">
+              <button class="settings-btn primary" id="settingsThemeBtn">Toggle Theme</button>
+              <button class="settings-btn" id="settingsResetThemeBtn">Reset to Dark</button>
+            </div>
+          </section>
+
+          <section class="settings-card settings-span-2">
+            <h3>Session</h3>
+            <p>Manage your active session and secure your account.</p>
+            <div class="settings-actions">
+              <button class="settings-btn danger" id="settingsLogoutBtn">Log Out</button>
+            </div>
+          </section>
+        </div>
       </div>
     </div>
   </div>
@@ -1677,6 +1792,9 @@
         <div class="editor-actions">
           <button class="editor-action-btn" id="editorHelpBtn" aria-label="Shortcut help" title="Shortcut help">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </button>
+          <button class="editor-action-btn" id="editorExportBtn" aria-label="Export note as PDF" title="Export as PDF">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
           </button>
           <button class="editor-action-btn" id="editorStarBtn" aria-label="Toggle favorite">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -1858,8 +1976,12 @@
 
       var container = document.getElementById('notesContainer');
       var notesArea = document.getElementById('notesArea');
+      var settingsView = document.getElementById('settingsView');
       var sectionTitle = document.getElementById('sectionTitle');
       var sectionSub = document.getElementById('sectionSub');
+      var searchWrap = document.getElementById('searchWrap');
+      var viewToggle = document.getElementById('viewToggle');
+      var sortWrap = document.getElementById('sortWrap');
       var searchInput = document.getElementById('searchInput');
       var gridViewBtn = document.getElementById('gridViewBtn');
       var listViewBtn = document.getElementById('listViewBtn');
@@ -1876,6 +1998,7 @@
       var editorBodyPane = document.getElementById('editorEditPane');
       var editorDivider = document.getElementById('editorDivider');
       var editorHelpBtn = document.getElementById('editorHelpBtn');
+      var editorExportBtn = document.getElementById('editorExportBtn');
       var editorStarBtn = document.getElementById('editorStarBtn');
       var editorTrashBtn = document.getElementById('editorTrashBtn');
       var editorSaved = document.getElementById('editorSaved');
@@ -1922,6 +2045,13 @@
       var notifList = document.getElementById('notifList');
       var markAllRead = document.getElementById('markAllRead');
       var notifViewAllTodos = document.getElementById('notifViewAllTodos');
+      var settingsName = document.getElementById('settingsName');
+      var settingsEmail = document.getElementById('settingsEmail');
+      var settingsThemeValue = document.getElementById('settingsThemeValue');
+      var settingsThemeBtn = document.getElementById('settingsThemeBtn');
+      var settingsResetThemeBtn = document.getElementById('settingsResetThemeBtn');
+      var settingsLogoutBtn = document.getElementById('settingsLogoutBtn');
+      var currentProfile = null;
 
       function redirectToLogin() {
         window.location.href = '/?auth=login';
@@ -2188,11 +2318,24 @@
       }
 
       function setupUser(profile) {
+        currentProfile = profile || null;
         var username = profile.username || 'User';
         var email = profile.email || '';
         document.getElementById('sidebarAvatar').textContent = username.charAt(0).toUpperCase();
         document.getElementById('sidebarName').textContent = username;
         document.getElementById('sidebarEmail').textContent = email;
+        renderSettingsView();
+      }
+
+      function currentThemeLabel() {
+        return document.documentElement.getAttribute('data-theme') === 'dark' ? 'Dark' : 'Light';
+      }
+
+      function renderSettingsView() {
+        var profile = currentProfile || {};
+        settingsName.textContent = profile.username || 'User';
+        settingsEmail.textContent = profile.email || 'user@notelify.app';
+        settingsThemeValue.textContent = currentThemeLabel();
       }
 
       function switchNav(nav) {
@@ -2201,14 +2344,30 @@
         document.querySelectorAll('.mobile-nav-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.mnav === nav); });
         var titles = { all: 'All Notes', favorites: 'Favorites', trash: 'Trash', settings: 'Settings', todos: 'Todos' };
         sectionTitle.textContent = titles[nav] || 'Notes';
+
+        var showNoteControls = nav !== 'todos' && nav !== 'settings';
+        searchWrap.classList.toggle('hidden', !showNoteControls);
+        viewToggle.classList.toggle('hidden', !showNoteControls);
+        sortWrap.classList.toggle('hidden', !showNoteControls);
+
         if (nav === 'todos') {
+          sectionSub.textContent = 'Task board and reminders';
           notesArea.classList.add('hidden');
+          settingsView.classList.remove('active');
           todoView.classList.add('active');
           contentArea.classList.remove('empty-state');
           renderTodos();
+        } else if (nav === 'settings') {
+          sectionSub.textContent = 'Account and preferences';
+          notesArea.classList.add('hidden');
+          todoView.classList.remove('active');
+          settingsView.classList.add('active');
+          contentArea.classList.remove('empty-state');
+          renderSettingsView();
         } else {
           notesArea.classList.remove('hidden');
           todoView.classList.remove('active');
+          settingsView.classList.remove('active');
           loadAndRenderNotes();
         }
       }
@@ -2456,6 +2615,37 @@
 
         replaceEditorRange(linkRangeStart, linkRangeEnd, replacement, selectStart, selectEnd);
         closeLinkDialog(false);
+      }
+
+      function exportCurrentNotePdf() {
+        if (editingNoteId == null) {
+          return;
+        }
+        var note = notes.find(function (n) { return n.id === editingNoteId; });
+        var safeTitle = (note && note.title ? note.title : 'note').trim() || 'note';
+        var filename = safeTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'note';
+
+        window.NotelifyAuth.authFetch('/api/notes/' + editingNoteId + '/export.pdf')
+          .then(function (res) {
+            if (!res.ok) {
+              throw new Error('Could not export note as PDF.');
+            }
+            return res.blob();
+          })
+          .then(function (blob) {
+            var blobUrl = window.URL.createObjectURL(blob);
+            var link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = filename + '.pdf';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(blobUrl);
+            showToast('PDF exported.', 'success');
+          })
+          .catch(function (err) {
+            showToast(err.message || 'Could not export note.', 'error');
+          });
       }
 
       function openHelpDialog() {
@@ -2896,7 +3086,23 @@
       function setupEvents() {
         applyEditorSplit(editorSplitPercent);
         themeBtn.addEventListener('click', toggleTheme);
+        themeBtn.addEventListener('click', renderSettingsView);
         document.getElementById('logoutBtn').addEventListener('click', function () {
+          window.NotelifyAuth.logout().finally(function () {
+            redirectToLogin();
+          });
+        });
+        settingsThemeBtn.addEventListener('click', function () {
+          toggleTheme();
+          renderSettingsView();
+        });
+        settingsResetThemeBtn.addEventListener('click', function () {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          localStorage.setItem('notelify-theme', 'dark');
+          renderSettingsView();
+          showToast('Theme reset to dark.', 'info');
+        });
+        settingsLogoutBtn.addEventListener('click', function () {
           window.NotelifyAuth.logout().finally(function () {
             redirectToLogin();
           });
@@ -2982,6 +3188,7 @@
           saveTimer = setTimeout(saveCurrentNote, 700);
         });
         editorHelpBtn.addEventListener('click', openHelpDialog);
+        editorExportBtn.addEventListener('click', exportCurrentNotePdf);
         editorHelpClose.addEventListener('click', closeHelpDialog);
         editorBody.addEventListener('keydown', handleEditorBodyEnter);
         editorBody.addEventListener('input', function () {

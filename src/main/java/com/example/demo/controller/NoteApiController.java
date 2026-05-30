@@ -2,6 +2,8 @@ package com.example.demo.controller;
 
 import java.util.List;
 
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -76,5 +78,15 @@ public class NoteApiController {
 	public ResponseEntity<Void> remove(Authentication authentication, @PathVariable Long id) {
 		noteService.deletePermanently(authentication.getName(), id);
 		return ResponseEntity.noContent().build();
+	}
+
+	@GetMapping(value = "/{id}/export.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+	public ResponseEntity<byte[]> exportPdf(Authentication authentication, @PathVariable Long id) {
+		byte[] pdf = noteService.exportPdf(authentication.getName(), id);
+		String fileName = "note-" + id + ".pdf";
+		return ResponseEntity.ok()
+			.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+			.contentType(MediaType.APPLICATION_PDF)
+			.body(pdf);
 	}
 }

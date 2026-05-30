@@ -5,9 +5,13 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.io.ByteArrayOutputStream;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Service;
 
+import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import com.example.demo.dto.note.NoteResponse;
 import com.example.demo.dto.note.NoteUpsertRequest;
 import com.example.demo.entity.NoteEntity;
@@ -72,6 +76,21 @@ public class NoteService {
 	public void deletePermanently(String ownerEmail, Long id) {
 		NoteEntity note = requireOwnerNote(ownerEmail, id);
 		noteRepository.delete(note);
+	}
+
+	public byte[] exportPdf(String ownerEmail, Long id) {
+		NoteEntity note = requireOwnerNote(ownerEmail, id);
+		String html = buildPdfHtml(note);
+		try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+			PdfRendererBuilder builder = new PdfRendererBuilder();
+			builder.useFastMode();
+			builder.withHtmlContent(html, null);
+			builder.toStream(output);
+			builder.run();
+			return output.toByteArray();
+		} catch (Exception ex) {
+			throw new IllegalStateException("Could not export note as PDF.", ex);
+		}
 	}
 
 	private void applyUpsert(NoteEntity note, NoteUpsertRequest request) {
@@ -151,5 +170,141 @@ public class NoteService {
 
 	private boolean isBlank(String value) {
 		return value == null || value.trim().isEmpty();
+	}
+
+	private String buildPdfHtml(NoteEntity note) {
+		String title = escapeHtml(note.getTitle());
+		String category = escapeHtml(note.getCategory());
+		String updated = note.getUpdatedAt() == null ? "" : note.getUpdatedAt().toString();
+		String contentHtml = renderMarkdown(note.getContent());
+		return """
+			<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+			<html xmlns=\"http://www.w3.org/1999/xhtml\">
+			<head>
+			<meta charset=\"UTF-8\" />
+			<style>
+			  @page { size: A4; margin: 24mm 18mm; }
+			  body { font-family: Arial, sans-serif; color: #1f2937; line-height: 1.5; font-size: 12pt; }
+			  .title { font-size: 22pt; font-weight: 700; margin: 0 0 6px; }
+			  .meta { color: #6b7280; font-size: 10pt; margin: 0 0 18px; }
+			  .badge { display: inline-block; background: #eef2ff; color: #4338ca; border-radius: 999px; padding: 3px 10px; font-size: 9pt; font-weight: 700; margin-right: 8px; }
+			  h4 { font-size: 14pt; margin: 14px 0 6px; }
+			  p { margin: 0 0 8px; }
+			  ul, ol { margin: 0 0 10px; padding-left: 22px; }
+			  li { margin: 2px 0; }
+			  a { color: #1d4ed8; text-decoration: underline; }
+			</style>
+			</head>
+			<body>
+			  <h1 class=\"title\">%s</h1>
+			  <p class=\"meta\"><span class=\"badge\">%s</span>Updated %s</p>
+			  %s
+			</body>
+			</html>
+			""".formatted(title, category, escapeHtml(updated), contentHtml);
+	}
+
+	private String renderMarkdown(String value) {
+		String[] lines = value == null ? new String[0] : value.replace("\r\n", "\n").split("\n", -1);
+		StringBuilder out = new StringBuilder();
+		boolean inUl = false;
+		boolean inOl = false;
+
+		for (String line : lines) {
+			String trimmed = line.trim();
+			if (trimmed.isEmpty()) {
+				if (inUl) {
+					out.append("</ul>");
+					inUl = false;
+				}
+				if (inOl) {
+					out.append("</ol>");
+					inOl = false;
+				}
+				out.append("<p><br/></p>");
+				continue;
+			}
+
+			Matcher heading = Pattern.compile("^#\\s+(.+)$").matcher(trimmed);
+			if (heading.find()) {
+				if (inUl) {
+					out.append("</ul>");
+					inUl = false;
+				}
+				if (inOl) {
+					out.append("</ol>");
+					inOl = false;
+				}
+				out.append("<h4>").append(renderInline(heading.group(1))).append("</h4>");
+				continue;
+			}
+
+			Matcher bullet = Pattern.compile("^[-*]\\s+(.+)$").matcher(trimmed);
+			if (bullet.find()) {
+				if (inOl) {
+					out.append("</ol>");
+					inOl = false;
+				}
+				if (!inUl) {
+					out.append("<ul>");
+					inUl = true;
+				}
+				out.append("<li>").append(renderInline(bullet.group(1))).append("</li>");
+				continue;
+			}
+
+			Matcher number = Pattern.compile("^\\d+\\.\\s+(.+)$").matcher(trimmed);
+			if (number.find()) {
+				if (inUl) {
+					out.append("</ul>");
+					inUl = false;
+				}
+				if (!inOl) {
+					out.append("<ol>");
+					inOl = true;
+				}
+				out.append("<li>").append(renderInline(number.group(1))).append("</li>");
+				continue;
+			}
+
+			if (inUl) {
+				out.append("</ul>");
+				inUl = false;
+			}
+			if (inOl) {
+				out.append("</ol>");
+				inOl = false;
+			}
+			out.append("<p>").append(renderInline(line)).append("</p>");
+		}
+
+		if (inUl) {
+			out.append("</ul>");
+		}
+		if (inOl) {
+			out.append("</ol>");
+		}
+		return out.toString();
+	}
+
+	private String renderInline(String text) {
+		String html = escapeHtml(text == null ? "" : text);
+		html = html.replaceAll("&lt;u&gt;([\\s\\S]*?)&lt;/u&gt;", "<u>$1</u>");
+		html = html.replaceAll("\\*\\*([^*]+)\\*\\*", "<strong>$1</strong>");
+		html = html.replaceAll("\\*([^*]+)\\*", "<em>$1</em>");
+		html = html.replaceAll("\\[([^\\]]+)\\]\\(((?:https?://|mailto:)[^)\\s]+)\\)", "<a href=\"$2\">$1</a>");
+		return html;
+	}
+
+	private String escapeHtml(String raw) {
+		if (raw == null) {
+			return "";
+		}
+		return raw
+			.replace("&", "&amp;")
+			.replace("<", "&lt;")
+			.replace(">", "&gt;")
+			.replace("\"", "&quot;")
+			.replace("'", "&#39;");
 	}
 }

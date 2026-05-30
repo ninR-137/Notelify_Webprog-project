@@ -2084,16 +2084,45 @@
         return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
       }
 
+      function daysUntilDate(dateStr) {
+        if (!dateStr) {
+          return null;
+        }
+        var today = new Date();
+        var due = new Date(dateStr + 'T00:00:00');
+        if (Number.isNaN(due.getTime())) {
+          return null;
+        }
+        var todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        var diff = due.getTime() - todayStart.getTime();
+        return Math.floor(diff / (24 * 60 * 60 * 1000));
+      }
+
       function buildNotifications() {
         notifications = [];
-        var today = todayStr();
         todos.forEach(function (t) {
           if (t.completed) return;
-          if (t.dueDate === today) {
-            notifications.push({ id: 'due-' + t.id, message: 'Task "' + t.title + '" is due today', type: 'due', time: 'Today' });
-          }
-          if (t.dueDate && t.dueDate < today) {
+          var daysUntilDue = daysUntilDate(t.dueDate);
+          if (daysUntilDue == null) return;
+
+          if (daysUntilDue < 0) {
             notifications.push({ id: 'overdue-' + t.id, message: 'Task "' + t.title + '" is overdue', type: 'due', time: 'Overdue' });
+            return;
+          }
+
+          if (daysUntilDue === 0) {
+            notifications.push({ id: 'due-' + t.id, message: 'Task "' + t.title + '" is due today', type: 'due', time: 'Today' });
+            return;
+          }
+
+          var reminderDays = Number(t.reminderDays || 0);
+          if (reminderDays > 0 && daysUntilDue === reminderDays) {
+            notifications.push({
+              id: 'reminder-' + t.id,
+              message: 'Task "' + t.title + '" is due in ' + reminderDays + ' day' + (reminderDays === 1 ? '' : 's'),
+              type: 'reminder',
+              time: 'Reminder'
+            });
           }
         });
       }

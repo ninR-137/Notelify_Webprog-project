@@ -1220,7 +1220,7 @@
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-inner">
         <div class="sidebar-header">
-          <a href="/" class="sidebar-logo">
+          <a href="index.html" class="sidebar-logo">
             <span>Notelify</span>
           </a>
           <button class="sidebar-toggle" id="sidebarToggle" aria-label="Collapse sidebar">
@@ -1526,21 +1526,49 @@
   <!-- Toast -->
   <div class="toast" id="toast"></div>
 
-  <script src="/js/auth-client.js"></script>
   <script>
     (function () {
-      var notes = [];
-      var todos = [];
-      var notifications = [];
-      var readNotifIds = new Set();
+      var params = new URLSearchParams(window.location.search);
+      var userName = params.get('user') || 'User';
+      var userEmail = userName.toLowerCase() + '@notelify.app';
+
+      // ---- Data ----
+      var notes = [
+        { id: 1, title: 'Welcome to Notelify', preview: 'Get started with your first note. Write down your thoughts, ideas, and reminders. Everything syncs across your devices automatically.', category: 'Getting Started', tags: ['intro', 'guide'], date: 'Today', favorited: true },
+        { id: 2, title: 'Meeting Notes', preview: 'Discuss Q3 goals, marketing strategy, product roadmap alignment. Action items: finalize budget by Friday, review design specs.', category: 'Work', tags: ['sprint', 'q3'], date: 'Yesterday', favorited: false },
+        { id: 3, title: 'Project Ideas', preview: 'Mobile app redesign, new feature for dark mode, AI-powered search, collaborative editing, real-time sync improvements.', category: 'Ideas', tags: ['features', 'roadmap'], date: '2d ago', favorited: true },
+        { id: 4, title: 'Shopping List', preview: 'Milk, eggs, bread, coffee, olive oil, avocados, chicken breast, rice, pasta, tomatoes, onions, garlic.', category: 'Personal', tags: ['errands'], date: '3d ago', favorited: false },
+        { id: 5, title: 'Blog Post Draft', preview: '10 tips for better productivity: morning routines, time blocking, deep work sessions, minimizing context switching, the two-minute rule.', category: 'Writing', tags: ['blog', 'productivity'], date: '1w ago', favorited: false },
+        { id: 6, title: 'Design Inspiration', preview: 'Clean UI layouts, color palettes, typography pairings. Reference sites: Linear, Notion, Superhuman, Arc Browser.', category: 'Ideas', tags: ['design', 'ui'], date: '1w ago', favorited: false }
+      ];
+      var nextId = 7;
       var currentView = 'grid';
       var currentNav = 'all';
+      var editingNoteId = null;
+
+      // ---- Todo data ----
+      var todos = [
+        { id: 1, title: 'Review Q3 budget proposal', completed: false, due: '2026-06-02', priority: 'high', reminder: '1hour', description: 'Go through the quarterly budget and provide feedback.', created: new Date(Date.now() - 86400000 * 2) },
+        { id: 2, title: 'Design team sync preparation', completed: false, due: '2026-06-01', priority: 'medium', reminder: '15min', description: 'Prepare slides and agenda for the weekly design sync.', created: new Date(Date.now() - 86400000 * 3) },
+        { id: 3, title: 'Update project roadmap', completed: true, due: '2026-05-28', priority: 'high', reminder: '', description: 'Update the roadmap with latest milestones.', created: new Date(Date.now() - 86400000 * 5) },
+        { id: 4, title: 'Review pull request #42', completed: false, due: '2026-06-03', priority: 'medium', reminder: '', description: 'Code review for the new authentication module.', created: new Date(Date.now() - 86400000) },
+        { id: 5, title: 'Order office supplies', completed: false, due: '2026-06-05', priority: 'low', reminder: '1day', description: 'Restock on paper, pens, and printer toner.', created: new Date(Date.now() - 86400000 * 4) },
+        { id: 6, title: 'Prepare monthly report', completed: false, due: '2026-06-10', priority: 'low', reminder: '', description: 'Compile metrics and highlights for the monthly stakeholder report.', created: new Date(Date.now() - 86400000 * 7) }
+      ];
+      var todoNextId = 7;
+
+      // ---- Notification data ----
+      var notifications = [
+        { id: 1, message: 'Task "Review Q3 budget proposal" is due tomorrow', read: false, time: '2 hours ago', type: 'due' },
+        { id: 2, message: 'Task "Design team sync preparation" is due in 15 minutes', read: false, time: '1 hour ago', type: 'reminder' },
+        { id: 3, message: 'Task "Update project roadmap" has been completed', read: true, time: '3 days ago', type: 'completed' }
+      ];
+      var notifNextId = 4;
+
       var currentTodoFilter = 'all';
       var currentTodoSort = 'due';
-      var editingNoteId = null;
-      var editingTodoId = null;
-      var saveTimer = null;
 
+      // ---- DOM refs ----
       var container = document.getElementById('notesContainer');
       var notesArea = document.getElementById('notesArea');
       var sectionTitle = document.getElementById('sectionTitle');
@@ -1565,8 +1593,10 @@
       var toast = document.getElementById('toast');
       var themeBtn = document.getElementById('sideThemeToggle');
 
+      // ---- Todo DOM refs ----
       var todoView = document.getElementById('todoView');
       var todoList = document.getElementById('todoList');
+      var todoAddBtn = document.getElementById('todoAddBtn');
       var todoAddBtn = document.getElementById('todoAddBtn');
       var todoProgressFill = document.getElementById('todoProgressFill');
       var todoProgressText = document.getElementById('todoProgressText');
@@ -1592,10 +1622,324 @@
       var markAllRead = document.getElementById('markAllRead');
       var notifViewAllTodos = document.getElementById('notifViewAllTodos');
 
-      function redirectToLogin() {
-        window.location.href = '/';
+      // ---- Theme ----
+      var theme = localStorage.getItem('notelify-theme') || 'light';
+      if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      function toggleTheme() {
+        var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        if (isDark) { document.documentElement.removeAttribute('data-theme'); localStorage.setItem('notelify-theme', 'light'); }
+        else { document.documentElement.setAttribute('data-theme', 'dark'); localStorage.setItem('notelify-theme', 'dark'); }
+      }
+      themeBtn.addEventListener('click', toggleTheme);
+
+      // ---- User ----
+      document.getElementById('sidebarAvatar').textContent = userName.charAt(0).toUpperCase();
+      document.getElementById('sidebarName').textContent = userName;
+      document.getElementById('sidebarEmail').textContent = userEmail;
+
+      // ---- Logout ----
+      document.getElementById('logoutBtn').addEventListener('click', function () { window.location.href = 'index.html'; });
+
+      // ---- Navigation ----
+      function switchNav(nav) {
+        currentNav = nav;
+        document.querySelectorAll('.nav-item').forEach(function (b) { b.classList.toggle('active', b.dataset.nav === nav); });
+        document.querySelectorAll('.mobile-nav-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.mnav === nav); });
+        var titles = { all: 'All Notes', favorites: 'Favorites', trash: 'Trash', settings: 'Settings', todos: 'Todos' };
+        sectionTitle.textContent = titles[nav] || nav.charAt(0).toUpperCase() + nav.slice(1);
+        if (nav === 'todos') {
+          notesArea.classList.add('hidden');
+          todoView.classList.add('active');
+          contentArea.classList.remove('empty-state');
+          renderTodos();
+          renderWidget();
+        } else {
+          notesArea.classList.remove('hidden');
+          todoView.classList.remove('active');
+          renderNotes();
+        }
       }
 
+      // ---- Render notes ----
+      function getFilteredNotes() {
+        var query = searchInput.value.toLowerCase().trim();
+        var list = notes.slice();
+        if (currentNav === 'favorites') list = list.filter(function (n) { return n.favorited; });
+        var sort = sortSelect.value;
+        if (sort === 'recent') { /* keep default order */ }
+        else if (sort === 'alpha') list.sort(function (a, b) { return a.title.localeCompare(b.title); });
+        else if (sort === 'oldest') list.reverse();
+        if (query) list = list.filter(function (n) {
+          return n.title.toLowerCase().includes(query) || n.preview.toLowerCase().includes(query) || n.category.toLowerCase().includes(query);
+        });
+        return list;
+      }
+
+      function renderNotes() {
+        var list = getFilteredNotes();
+        var isFavView = currentNav === 'favorites';
+
+        if (list.length === 0) {
+          notesArea.className = 'notes-area empty-state';
+          if (isFavView) {
+            container.innerHTML = '';
+            notesArea.innerHTML =
+              '<div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>' +
+              '<h2>No favorites yet</h2>' +
+              '<p>Star notes to add them to your favorites.</p>';
+          } else if (searchInput.value.trim()) {
+            notesArea.innerHTML =
+              '<div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>' +
+              '<h2>No results found</h2>' +
+              '<p>Try a different search term.</p>';
+          } else {
+            notesArea.innerHTML =
+              '<div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/></svg></div>' +
+              '<h2>No notes yet</h2>' +
+              '<p>Create your first note to get started.</p>' +
+              '<button class="new-note-btn" style="width:auto;padding:11px 24px;" onclick="document.getElementById(\'newNoteBtn\').click()">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Create Note</span></button>';
+          }
+          updateCount(0);
+          return;
+        }
+        notesArea.className = 'notes-area';
+        if (currentView === 'grid') {
+          container.className = 'note-grid';
+          var html = '';
+          for (var i = 0; i < list.length; i++) {
+            var n = list[i];
+            html +=
+              '<div class="note-card fade-in" data-id="' + n.id + '">' +
+                '<button class="note-card-star' + (n.favorited ? ' favorited' : '') + '" data-action="star" data-id="' + n.id + '">' +
+                  '<svg viewBox="0 0 24 24" fill="' + (n.favorited ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>' +
+                '</button>' +
+                '<span class="note-card-category">' + escapeHtml(n.category) + '</span>' +
+                '<h3>' + escapeHtml(n.title) + '</h3>' +
+                '<p>' + escapeHtml(n.preview) + '</p>' +
+                '<div class="note-card-footer">' +
+                  '<div class="note-card-tags">' + n.tags.map(function (t) { return '<span class="note-tag">' + t + '</span>'; }).join('') + '</div>' +
+                  '<span class="note-card-date">' + n.date + '</span>' +
+                '</div>' +
+              '</div>';
+          }
+          container.innerHTML = html;
+        } else {
+          container.className = 'note-list';
+          var html2 = '';
+          for (var i = 0; i < list.length; i++) {
+            var n = list[i];
+            html2 +=
+              '<div class="note-list-item fade-in" data-id="' + n.id + '">' +
+                '<button class="list-star' + (n.favorited ? ' favorited' : '') + '" data-action="star" data-id="' + n.id + '">' +
+                  '<svg viewBox="0 0 24 24" fill="' + (n.favorited ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>' +
+                '</button>' +
+                '<span class="list-title">' + escapeHtml(n.title) + '</span>' +
+                '<span class="list-preview">' + escapeHtml(n.preview) + '</span>' +
+                '<span class="list-date">' + n.date + '</span>' +
+                '<button class="list-trash" data-action="trash" data-id="' + n.id + '">' +
+                  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' +
+                '</button>' +
+              '</div>';
+          }
+          container.innerHTML = html2;
+        }
+        updateCount(list.length);
+        attachNoteEvents();
+      }
+
+      function updateCount(count) {
+        if (currentNav === 'favorites') {
+          sectionSub.textContent = count + ' favorite' + (count !== 1 ? 's' : '');
+        } else {
+          sectionSub.textContent = count + ' note' + (count !== 1 ? 's' : '');
+        }
+        sectionSub.dataset.count = count;
+      }
+
+      function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
+      }
+
+      function attachNoteEvents() {
+        var items = container.querySelectorAll('[data-id]');
+        for (var i = 0; i < items.length; i++) {
+          items[i].addEventListener('click', function (e) {
+            var target = e.target.closest('[data-action]');
+            if (target) {
+              var action = target.dataset.action;
+              var id = parseInt(target.dataset.id);
+              if (action === 'star') toggleFav(id);
+              else if (action === 'trash') deleteNote(id);
+              return;
+            }
+            var card = e.currentTarget;
+            if (card.classList.contains('note-card') || card.classList.contains('note-list-item')) {
+              openEditor(parseInt(card.dataset.id));
+            }
+          });
+        }
+      }
+
+      // ---- Favorites ----
+      function toggleFav(id) {
+        for (var i = 0; i < notes.length; i++) {
+          if (notes[i].id === id) { notes[i].favorited = !notes[i].favorited; break; }
+        }
+        renderNotes();
+      }
+
+      // ---- Delete ----
+      function deleteNote(id) {
+        for (var i = 0; i < notes.length; i++) {
+          if (notes[i].id === id) { notes.splice(i, 1); break; }
+        }
+        renderNotes();
+        showToast('Note moved to trash', 'info');
+      }
+
+      // ---- Search ----
+      searchInput.addEventListener('input', function () { renderNotes(); });
+
+      // ---- View toggle ----
+      gridViewBtn.addEventListener('click', function () {
+        currentView = 'grid';
+        gridViewBtn.classList.add('active');
+        listViewBtn.classList.remove('active');
+        renderNotes();
+      });
+      listViewBtn.addEventListener('click', function () {
+        currentView = 'list';
+        listViewBtn.classList.add('active');
+        gridViewBtn.classList.remove('active');
+        renderNotes();
+      });
+
+      // ---- Sort ----
+      sortSelect.addEventListener('change', function () { renderNotes(); });
+
+      // ---- Navigation ----
+      document.querySelectorAll('.nav-item').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          switchNav(btn.dataset.nav);
+        });
+      });
+
+      // ---- Mobile nav ----
+      document.querySelectorAll('.mobile-nav-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          if (btn.classList.contains('mobile-new-btn')) return;
+          switchNav(btn.dataset.mnav);
+        });
+      });
+
+      // ---- Sidebar collapse ----
+      var isCollapsed = false;
+      sidebarToggle.addEventListener('click', function () {
+        isCollapsed = !isCollapsed;
+        sidebar.classList.toggle('collapsed', isCollapsed);
+      });
+
+      // ---- Mobile sidebar ----
+      mobileMenuBtn.addEventListener('click', function () {
+        document.body.classList.add('mobile-sidebar-open');
+        sidebarOverlay.classList.add('open');
+      });
+      sidebarOverlay.addEventListener('click', function () {
+        document.body.classList.remove('mobile-sidebar-open');
+        sidebarOverlay.classList.remove('open');
+      });
+
+      // ---- Editor ----
+      function openEditor(id) {
+        editingNoteId = id;
+        var note = null;
+        for (var i = 0; i < notes.length; i++) { if (notes[i].id === id) { note = notes[i]; break; } }
+        if (!note) return;
+        editorTitle.value = note.title;
+        editorBody.value = note.preview;
+        editorStarBtn.classList.toggle('favorited', note.favorited);
+        editorStarBtn.querySelector('svg').setAttribute('fill', note.favorited ? 'currentColor' : 'none');
+        editorOverlay.classList.add('open');
+        editorModal.classList.add('open');
+        editorSaved.querySelector('span').textContent = 'Saved';
+        editorTimestamp.textContent = 'Last saved just now';
+        document.body.style.overflow = 'hidden';
+        setTimeout(function () { editorTitle.focus(); }, 300);
+      }
+
+      function closeEditor() {
+        if (editingNoteId !== null) {
+          for (var i = 0; i < notes.length; i++) {
+            if (notes[i].id === editingNoteId) {
+              notes[i].title = editorTitle.value.trim() || 'Untitled';
+              notes[i].preview = editorBody.value.trim() || 'No content';
+              notes[i].date = 'Just now';
+              break;
+            }
+          }
+          renderNotes();
+        }
+        editorOverlay.classList.remove('open');
+        editorModal.classList.remove('open');
+        document.body.style.overflow = '';
+        editingNoteId = null;
+      }
+
+      editorBack.addEventListener('click', closeEditor);
+      editorOverlay.addEventListener('click', closeEditor);
+
+      editorStarBtn.addEventListener('click', function () {
+        if (editingNoteId === null) return;
+        for (var i = 0; i < notes.length; i++) {
+          if (notes[i].id === editingNoteId) { notes[i].favorited = !notes[i].favorited; break; }
+        }
+        var isFav = editorStarBtn.classList.toggle('favorited');
+        editorStarBtn.querySelector('svg').setAttribute('fill', isFav ? 'currentColor' : 'none');
+        renderNotes();
+      });
+
+      editorTrashBtn.addEventListener('click', function () {
+        if (editingNoteId === null) return;
+        deleteNote(editingNoteId);
+        closeEditor();
+      });
+
+      // Auto-save simulation
+      var saveTimer = null;
+      function onEditorChange() {
+        editorSaved.querySelector('span').textContent = 'Saving...';
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(function () {
+          if (editingNoteId !== null) {
+            for (var i = 0; i < notes.length; i++) {
+              if (notes[i].id === editingNoteId) {
+                notes[i].title = editorTitle.value.trim() || 'Untitled';
+                notes[i].preview = editorBody.value.trim() || 'No content';
+                break;
+              }
+            }
+          }
+          editorSaved.querySelector('span').textContent = 'Saved';
+          editorTimestamp.textContent = 'Last saved just now';
+        }, 600);
+      }
+      editorTitle.addEventListener('input', onEditorChange);
+      editorBody.addEventListener('input', onEditorChange);
+
+      // ---- New note ----
+      function createNewNote() {
+        var note = { id: nextId++, title: 'Untitled', preview: 'Start writing...', category: 'Personal', tags: ['new'], date: 'Just now', favorited: false };
+        notes.unshift(note);
+        renderNotes();
+        openEditor(note.id);
+      }
+      document.getElementById('newNoteBtn').addEventListener('click', createNewNote);
+      document.getElementById('mobileNewBtn').addEventListener('click', createNewNote);
+
+      // ---- Toast ----
       function showToast(msg, type) {
         toast.textContent = msg;
         toast.className = 'toast toast-' + (type || 'info');
@@ -1604,331 +1948,51 @@
         toast._hide = setTimeout(function () { toast.classList.remove('show'); }, 2500);
       }
 
-      function escapeHtml(str) {
-        var div = document.createElement('div');
-        div.appendChild(document.createTextNode(str || ''));
-        return div.innerHTML;
-      }
-
-      function themeInit() {
-        var theme = localStorage.getItem('notelify-theme') || 'dark';
-        if (theme === 'dark') {
-          document.documentElement.setAttribute('data-theme', 'dark');
-        }
-      }
-
-      function toggleTheme() {
-        var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        if (isDark) {
-          document.documentElement.removeAttribute('data-theme');
-          localStorage.setItem('notelify-theme', 'light');
-        } else {
-          document.documentElement.setAttribute('data-theme', 'dark');
-          localStorage.setItem('notelify-theme', 'dark');
-        }
-      }
-
-      function authJson(url, options) {
-        return window.NotelifyAuth.authFetch(url, options || {})
-          .then(function (res) {
-            return res.text().then(function (raw) {
-              var data = {};
-              if (raw) {
-                try {
-                  data = JSON.parse(raw);
-                } catch (e) {
-                  data = {};
-                }
-              }
-              if (!res.ok) {
-                var err = new Error(data.message || ('Request failed (' + res.status + ')'));
-                err.status = res.status;
-                throw err;
-              }
-              return data;
-            });
-          });
-      }
-
-      function formatRelative(dateStr) {
-        if (!dateStr) {
-          return 'Recently';
-        }
-        var date = new Date(dateStr);
-        var now = new Date();
-        var diff = now - date;
-        var day = 24 * 60 * 60 * 1000;
-        if (diff < day) return 'Today';
-        if (diff < 2 * day) return 'Yesterday';
-        if (diff < 7 * day) return Math.floor(diff / day) + 'd ago';
-        return date.toLocaleDateString();
-      }
-
-      function closeMobileMenu() {
-        document.body.classList.remove('mobile-sidebar-open');
-        sidebarOverlay.classList.remove('open');
-      }
-
-      function setupUser(profile) {
-        var username = profile.username || 'User';
-        var email = profile.email || '';
-        document.getElementById('sidebarAvatar').textContent = username.charAt(0).toUpperCase();
-        document.getElementById('sidebarName').textContent = username;
-        document.getElementById('sidebarEmail').textContent = email;
-      }
-
-      function switchNav(nav) {
-        currentNav = nav;
-        document.querySelectorAll('.nav-item').forEach(function (b) { b.classList.toggle('active', b.dataset.nav === nav); });
-        document.querySelectorAll('.mobile-nav-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.mnav === nav); });
-        var titles = { all: 'All Notes', favorites: 'Favorites', trash: 'Trash', settings: 'Settings', todos: 'Todos' };
-        sectionTitle.textContent = titles[nav] || 'Notes';
-        if (nav === 'todos') {
-          notesArea.classList.add('hidden');
-          todoView.classList.add('active');
-          contentArea.classList.remove('empty-state');
-          renderTodos();
-        } else {
-          notesArea.classList.remove('hidden');
-          todoView.classList.remove('active');
-          loadAndRenderNotes();
-        }
-      }
-
-      function updateCount(count) {
-        if (currentNav === 'favorites') {
-          sectionSub.textContent = count + ' favorite' + (count !== 1 ? 's' : '');
-          return;
-        }
-        if (currentNav === 'trash') {
-          sectionSub.textContent = count + ' trashed';
-          return;
-        }
-        sectionSub.textContent = count + ' note' + (count !== 1 ? 's' : '');
-      }
-
-      function currentNoteViewParam() {
-        if (currentNav === 'favorites') return 'favorites';
-        if (currentNav === 'trash') return 'trash';
-        return 'all';
-      }
-
-      function loadAndRenderNotes() {
-        var query = encodeURIComponent(searchInput.value.trim());
-        var sort = encodeURIComponent(sortSelect.value);
-        var view = encodeURIComponent(currentNoteViewParam());
-        return authJson('/api/notes?view=' + view + '&search=' + query + '&sort=' + sort)
-          .then(function (data) {
-            notes = Array.isArray(data) ? data : [];
-            renderNotes();
-          })
-          .catch(function (err) {
-            if (err.message === 'AUTH_REQUIRED') {
-              redirectToLogin();
-              return;
-            }
-            showToast(err.message || 'Failed to load notes.', 'error');
-          });
-      }
-
-      function renderNotes() {
-        var list = notes.slice();
-        if (list.length === 0) {
-          notesArea.className = 'notes-area empty-state';
-          notesArea.innerHTML =
-            '<div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>' +
-            '<h2>No notes found</h2>' +
-            '<p>Create a new note to get started.</p>';
-          updateCount(0);
-          return;
-        }
-
-        notesArea.className = 'notes-area';
-        if (notesArea.firstElementChild && notesArea.firstElementChild.id !== 'notesContainer') {
-          notesArea.innerHTML = '<div class="note-grid" id="notesContainer"></div>';
-          container = document.getElementById('notesContainer');
-        }
-
-        if (currentView === 'grid') {
-          container.className = 'note-grid';
-          container.innerHTML = list.map(function (n) {
-            return '<div class="note-card fade-in" data-id="' + n.id + '">' +
-              '<button class="note-card-star' + (n.favorited ? ' favorited' : '') + '" data-action="star" data-id="' + n.id + '">' +
-                '<svg viewBox="0 0 24 24" fill="' + (n.favorited ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>' +
-              '</button>' +
-              '<span class="note-card-category">' + escapeHtml(n.category) + '</span>' +
-              '<h3>' + escapeHtml(n.title) + '</h3>' +
-              '<p>' + escapeHtml(n.content) + '</p>' +
-              '<div class="note-card-footer">' +
-                '<div class="note-card-tags">' + (n.tags || []).slice(0, 3).map(function (t) { return '<span class="note-tag">' + escapeHtml(t) + '</span>'; }).join('') + '</div>' +
-                '<span class="note-card-date">' + formatRelative(n.updatedAt) + '</span>' +
-              '</div>' +
-            '</div>';
-          }).join('');
-        } else {
-          container.className = 'note-list';
-          container.innerHTML = list.map(function (n) {
-            return '<div class="note-list-item fade-in" data-id="' + n.id + '">' +
-              '<button class="list-star' + (n.favorited ? ' favorited' : '') + '" data-action="star" data-id="' + n.id + '">' +
-                '<svg viewBox="0 0 24 24" fill="' + (n.favorited ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>' +
-              '</button>' +
-              '<span class="list-title">' + escapeHtml(n.title) + '</span>' +
-              '<span class="list-preview">' + escapeHtml(n.content) + '</span>' +
-              '<span class="list-date">' + formatRelative(n.updatedAt) + '</span>' +
-              '<button class="list-trash" data-action="trash" data-id="' + n.id + '">' +
-                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' +
-              '</button>' +
-            '</div>';
-          }).join('');
-        }
-        updateCount(list.length);
-        attachNoteEvents();
-      }
-
-      function attachNoteEvents() {
-        container.querySelectorAll('[data-id]').forEach(function (item) {
-          item.addEventListener('click', function (e) {
-            var actionTarget = e.target.closest('[data-action]');
-            if (actionTarget) {
-              var action = actionTarget.dataset.action;
-              var id = parseInt(actionTarget.dataset.id, 10);
-              if (action === 'star') {
-                toggleFav(id);
-              }
-              if (action === 'trash') {
-                deleteNote(id);
-              }
-              return;
-            }
-            openEditor(parseInt(item.dataset.id, 10));
-          });
+      // ---- Toolbar (demo) ----
+      document.querySelectorAll('.toolbar-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var cmd = btn.dataset.cmd;
+          btn.classList.toggle('active');
+          var area = editorBody;
+          var start = area.selectionStart;
+          var end = area.selectionEnd;
+          var text = area.value;
+          var selected = text.substring(start, end);
+          var wrap = '';
+          if (cmd === 'bold') wrap = '**';
+          else if (cmd === 'italic') wrap = '*';
+          else if (cmd === 'underline') wrap = '<u></u>';
+          else if (cmd === 'bullet') { area.value = text.substring(0, start) + '\n- ' + selected + text.substring(end); area.focus(); return; }
+          else if (cmd === 'numbered') { area.value = text.substring(0, start) + '\n1. ' + selected + text.substring(end); area.focus(); return; }
+          else if (cmd === 'link') { area.value = text.substring(0, start) + '[' + (selected || 'link') + '](url)' + text.substring(end); area.focus(); return; }
+          else if (cmd === 'heading') { area.value = text.substring(0, start) + '## ' + selected + text.substring(end); area.focus(); return; }
+          if (wrap) { area.value = text.substring(0, start) + wrap + selected + wrap + text.substring(end); area.focus(); }
+          onEditorChange();
         });
-      }
+      });
 
-      function openEditor(id) {
-        editingNoteId = id;
-        var note = notes.find(function (n) { return n.id === id; });
-        if (!note) {
-          return;
-        }
-        editorTitle.value = note.title;
-        editorBody.value = note.content;
-        editorStarBtn.classList.toggle('favorited', !!note.favorited);
-        editorStarBtn.querySelector('svg').setAttribute('fill', note.favorited ? 'currentColor' : 'none');
-        editorOverlay.classList.add('open');
-        editorModal.classList.add('open');
-        document.body.style.overflow = 'hidden';
-      }
+      // ---- Close modals on Escape ----
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && editorModal.classList.contains('open')) closeEditor();
+        if (e.key === 'Escape' && todoModal.classList.contains('open')) closeTodoModal();
+      });
 
-      function saveCurrentNote() {
-        if (editingNoteId == null) {
-          return Promise.resolve();
-        }
-        var note = notes.find(function (n) { return n.id === editingNoteId; });
-        if (!note) {
-          return Promise.resolve();
-        }
-        return authJson('/api/notes/' + editingNoteId, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: editorTitle.value.trim() || 'Untitled',
-            content: editorBody.value.trim() || 'No content',
-            category: note.category || 'Personal',
-            tags: note.tags || [],
-            favorited: !!note.favorited
-          })
-        }).then(function (updated) {
-          for (var i = 0; i < notes.length; i++) {
-            if (notes[i].id === updated.id) {
-              notes[i] = updated;
-              break;
-            }
-          }
-          editorSaved.querySelector('span').textContent = 'Saved';
-          editorTimestamp.textContent = 'Last saved just now';
-        });
-      }
-
-      function closeEditor() {
-        clearTimeout(saveTimer);
-        saveCurrentNote().finally(function () {
-          editorOverlay.classList.remove('open');
-          editorModal.classList.remove('open');
-          document.body.style.overflow = '';
-          editingNoteId = null;
-          renderNotes();
-        });
-      }
-
-      function toggleFav(id) {
-        var note = notes.find(function (n) { return n.id === id; });
-        if (!note) return;
-        authJson('/api/notes/' + id + '/favorite', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ value: !note.favorited })
-        }).then(function () {
-          loadAndRenderNotes();
-        }).catch(function (err) {
-          showToast(err.message || 'Could not update favorite.', 'error');
-        });
-      }
-
-      function deleteNote(id) {
-        var inTrash = currentNav === 'trash';
-        var req = inTrash
-          ? authJson('/api/notes/' + id, { method: 'DELETE' })
-          : authJson('/api/notes/' + id + '/deleted', {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ value: true })
-            });
-
-        req.then(function () {
-          showToast(inTrash ? 'Note deleted permanently.' : 'Note moved to trash.', 'info');
-          loadAndRenderNotes();
-        }).catch(function (err) {
-          showToast(err.message || 'Could not delete note.', 'error');
-        });
-      }
-
-      function createNewNote() {
-        authJson('/api/notes', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: 'Untitled',
-            content: 'Start writing...',
-            category: 'Personal',
-            tags: ['new'],
-            favorited: false
-          })
-        }).then(function (note) {
-          notes.unshift(note);
-          renderNotes();
-          openEditor(note.id);
-        }).catch(function (err) {
-          showToast(err.message || 'Could not create note.', 'error');
-        });
-      }
-
+      // ---- Todos ----
       function getFilteredTodos() {
         var list = todos.slice();
         if (currentTodoFilter === 'pending') list = list.filter(function (t) { return !t.completed; });
-        if (currentTodoFilter === 'completed') list = list.filter(function (t) { return t.completed; });
-        if (currentTodoSort === 'priority') {
+        else if (currentTodoFilter === 'completed') list = list.filter(function (t) { return t.completed; });
+        if (currentTodoSort === 'due') {
+          list.sort(function (a, b) {
+            if (!a.due && !b.due) return 0;
+            if (!a.due) return 1; if (!b.due) return -1;
+            return a.due.localeCompare(b.due);
+          });
+        } else if (currentTodoSort === 'priority') {
           var order = { high: 0, medium: 1, low: 2 };
           list.sort(function (a, b) { return (order[a.priority] || 1) - (order[b.priority] || 1); });
         } else if (currentTodoSort === 'created') {
-          list.sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
-        } else {
-          list.sort(function (a, b) {
-            if (!a.dueDate && !b.dueDate) return 0;
-            if (!a.dueDate) return 1;
-            if (!b.dueDate) return -1;
-            return a.dueDate.localeCompare(b.dueDate);
-          });
+          list.sort(function (a, b) { return b.created - a.created; });
         }
         return list;
       }
@@ -1942,89 +2006,104 @@
         todoProgressText.textContent = done + ' of ' + total + ' completed';
 
         if (list.length === 0) {
+          var emptyMsg = currentTodoFilter === 'completed' ? 'No completed tasks yet.' : currentTodoFilter === 'pending' ? 'All tasks are completed!' : 'No tasks yet. Add one above!';
           todoList.innerHTML =
             '<div class="todo-empty-state">' +
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>' +
-            '<h3>No tasks yet</h3><p>Create a task to get started.</p></div>';
-          renderWidget();
-          renderNotifications();
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><polyline points="9 14 11 16 15 12"/></svg>' +
+              '<h3>' + (currentTodoFilter === 'pending' ? 'Nothing pending' : currentTodoFilter === 'completed' ? 'No completed tasks' : 'No tasks yet') + '</h3>' +
+              '<p>' + emptyMsg + '</p>' +
+            '</div>';
           return;
         }
 
-        todoList.innerHTML = list.map(function (t) {
-          var isOverdue = t.dueDate && !t.completed && t.dueDate < todayStr();
-          return '<div class="todo-item' + (t.completed ? ' completed' : '') + '" data-tid="' + t.id + '">' +
-            '<button class="todo-checkbox' + (t.completed ? ' checked' : '') + '" data-taction="toggle" data-tid="' + t.id + '">' +
-              (t.completed ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : '') +
-            '</button>' +
-            '<span class="todo-text">' + escapeHtml(t.title) + '</span>' +
-            '<div class="todo-meta">' +
-              (t.dueDate ? '<span class="todo-due' + (isOverdue ? ' overdue' : '') + '">' + t.dueDate + '</span>' : '') +
-              '<span class="todo-priority ' + t.priority + '">' + t.priority + '</span>' +
-            '</div>' +
-            '<button class="todo-more-btn" data-taction="edit" data-tid="' + t.id + '">' +
-              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>' +
-            '</button>' +
-          '</div>';
-        }).join('');
-
-        todoList.querySelectorAll('[data-taction]').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            var id = parseInt(btn.dataset.tid, 10);
-            if (btn.dataset.taction === 'toggle') {
-              toggleTodo(id);
-            }
-            if (btn.dataset.taction === 'edit') {
-              openTodoModal(id);
-            }
-          });
-        });
-
+        var html = '';
+        for (var i = 0; i < list.length; i++) {
+          var t = list[i];
+          var isOverdue = t.due && !t.completed && t.due < todayStr();
+          html +=
+            '<div class="todo-item' + (t.completed ? ' completed' : '') + '" data-tid="' + t.id + '">' +
+              '<button class="todo-checkbox' + (t.completed ? ' checked' : '') + '" data-taction="toggle" data-tid="' + t.id + '">' +
+                (t.completed ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : '') +
+              '</button>' +
+              '<span class="todo-text">' + escapeHtml(t.title) + '</span>' +
+              '<div class="todo-meta">' +
+                (t.due ? '<span class="todo-due' + (isOverdue ? ' overdue' : '') + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' + t.due + '</span>' : '') +
+                '<span class="todo-priority ' + t.priority + '">' + t.priority + '</span>' +
+              '</div>' +
+              '<button class="todo-more-btn" data-taction="edit" data-tid="' + t.id + '">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>' +
+              '</button>' +
+            '</div>';
+        }
+        todoList.innerHTML = html;
+        attachTodoEvents();
         renderWidget();
-        renderNotifications();
       }
 
-      function loadTodos() {
-        return authJson('/api/todos')
-          .then(function (data) {
-            todos = Array.isArray(data) ? data : [];
-            renderTodos();
-          })
-          .catch(function (err) {
-            showToast(err.message || 'Failed to load tasks.', 'error');
+      function todayStr() {
+        var d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      }
+
+      function attachTodoEvents() {
+        var items = todoList.querySelectorAll('[data-tid]');
+        for (var i = 0; i < items.length; i++) {
+          items[i].addEventListener('click', function (e) {
+            var target = e.target.closest('[data-taction]');
+            if (target) {
+              var action = target.dataset.taction;
+              var id = parseInt(target.dataset.tid);
+              if (action === 'toggle') toggleTodo(id);
+              else if (action === 'edit') openTodoModal(id);
+              return;
+            }
           });
+        }
       }
 
       function toggleTodo(id) {
-        var todo = todos.find(function (t) { return t.id === id; });
-        if (!todo) return;
-        authJson('/api/todos/' + id + '/completed', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ value: !todo.completed })
-        }).then(function () {
-          loadTodos();
-        }).catch(function (err) {
-          showToast(err.message || 'Could not update task.', 'error');
-        });
+        for (var i = 0; i < todos.length; i++) {
+          if (todos[i].id === id) {
+            todos[i].completed = !todos[i].completed;
+            if (todos[i].completed) {
+              notifications.unshift({ id: notifNextId++, message: 'Task "' + todos[i].title + '" has been completed', read: false, time: 'Just now', type: 'completed' });
+              updateBellBadge();
+            }
+            break;
+          }
+        }
+        renderTodos();
       }
+
+      function deleteTodo(id) {
+        for (var i = 0; i < todos.length; i++) {
+          if (todos[i].id === id) { todos.splice(i, 1); break; }
+        }
+        closeTodoModal();
+        renderTodos();
+        showToast('Task deleted', 'info');
+      }
+
+      // ---- Todo Modal ----
+      var editingTodoId = null;
 
       function openTodoModal(id) {
         editingTodoId = id;
-        var todo = todos.find(function (t) { return t.id === id; });
+        var todo = null;
+        for (var i = 0; i < todos.length; i++) { if (todos[i].id === id) { todo = todos[i]; break; } }
         if (todo) {
           todoModalTitle.textContent = 'Edit Task';
-          todoFormTitle.value = todo.title || '';
-          todoFormDesc.value = todo.description || '';
-          todoFormDue.value = todo.dueDate || '';
-          todoFormPriority.value = todo.priority || 'medium';
-          todoFormReminder.value = String(todo.reminderMinutes || 0);
+          todoFormTitle.value = todo.title;
+          todoFormDesc.value = todo.desc || '';
+          todoFormDate.value = todo.due || '';
+          todoFormPriority.value = todo.priority;
+          todoFormReminder.value = String(todo.reminder || 0);
           todoFormDelete.classList.remove('hidden');
         } else {
           todoModalTitle.textContent = 'Add Task';
           todoFormTitle.value = '';
           todoFormDesc.value = '';
-          todoFormDue.value = '';
+          todoFormDate.value = '';
           todoFormPriority.value = 'medium';
           todoFormReminder.value = '0';
           todoFormDelete.classList.add('hidden');
@@ -2032,11 +2111,14 @@
         todoFormTitleError.classList.add('hidden');
         editorOverlay.classList.add('open');
         todoModal.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        setTimeout(function () { todoFormTitle.focus(); }, 300);
       }
 
       function closeTodoModal() {
         editorOverlay.classList.remove('open');
         todoModal.classList.remove('open');
+        document.body.style.overflow = '';
         editingTodoId = null;
       }
 
@@ -2046,228 +2128,198 @@
           todoFormTitleError.classList.remove('hidden');
           return;
         }
-        var payload = {
-          title: title,
-          description: todoFormDesc.value.trim(),
-          dueDate: todoFormDue.value || null,
-          priority: todoFormPriority.value,
-          reminderMinutes: parseInt(todoFormReminder.value, 10) || 0
-        };
-        var req = editingTodoId == null
-          ? authJson('/api/todos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-          : authJson('/api/todos/' + editingTodoId, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-
-        req.then(function () {
-          closeTodoModal();
-          loadTodos();
-          showToast(editingTodoId == null ? 'Task added.' : 'Task updated.', 'success');
-        }).catch(function (err) {
-          showToast(err.message || 'Could not save task.', 'error');
-        });
-      }
-
-      function deleteTodo(id) {
-        authJson('/api/todos/' + id, { method: 'DELETE' })
-          .then(function () {
-            closeTodoModal();
-            loadTodos();
-            showToast('Task deleted.', 'info');
-          })
-          .catch(function (err) {
-            showToast(err.message || 'Could not delete task.', 'error');
-          });
-      }
-
-      function todayStr() {
-        var d = new Date();
-        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-      }
-
-      function buildNotifications() {
-        notifications = [];
-        var today = todayStr();
-        todos.forEach(function (t) {
-          if (t.completed) return;
-          if (t.dueDate === today) {
-            notifications.push({ id: 'due-' + t.id, message: 'Task "' + t.title + '" is due today', type: 'due', time: 'Today' });
+        todoFormTitleError.classList.add('hidden');
+        var desc = todoFormDesc.value.trim();
+        var due = todoFormDate.value;
+        var priority = todoFormPriority.value;
+        var reminder = todoFormReminder.value;
+        if (editingTodoId !== null) {
+          for (var i = 0; i < todos.length; i++) {
+            if (todos[i].id === editingTodoId) {
+              todos[i].title = title;
+              todos[i].desc = desc;
+              todos[i].due = due;
+              todos[i].priority = priority;
+              todos[i].reminder = reminder;
+              break;
+            }
           }
-          if (t.dueDate && t.dueDate < today) {
-            notifications.push({ id: 'overdue-' + t.id, message: 'Task "' + t.title + '" is overdue', type: 'due', time: 'Overdue' });
-          }
+        } else {
+          todos.unshift({ id: nextTodoId++, title: title, completed: false, due: due, priority: priority, reminder: reminder, description: desc, created: new Date() });
+        }
+        closeTodoModal();
+        renderTodos();
+        showToast(editingTodoId !== null ? 'Task updated' : 'Task added', 'success');
+      }
+
+      todoFormSave.addEventListener('click', saveTodoForm);
+      todoFormCancel.addEventListener('click', closeTodoModal);
+      todoFormDelete.addEventListener('click', function () {
+        if (editingTodoId !== null) deleteTodo(editingTodoId);
+      });
+      todoFormTitle.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') saveTodoForm();
+      });
+
+      todoAddBtn.addEventListener('click', function () {
+        openTodoModal(null);
+      });
+
+      // ---- Todo Filters ----
+      document.querySelectorAll('.todo-filter-chip').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+          document.querySelectorAll('.todo-filter-chip').forEach(function (c) { c.classList.remove('active'); });
+          chip.classList.add('active');
+          currentTodoFilter = chip.dataset.tfilter;
+          renderTodos();
         });
+      });
+
+      // ---- Todo Sort ----
+      todoSortSelect.addEventListener('change', function () {
+        currentTodoSort = todoSortSelect.value;
+        renderTodos();
+      });
+
+      // ---- Notifications ----
+      function updateBellBadge() {
+        var unread = notifications.filter(function (n) { return !n.read; }).length;
+        bellBadge.textContent = unread;
+        bellBadge.style.display = unread > 0 ? '' : 'none';
       }
 
       function renderNotifications() {
-        buildNotifications();
         if (notifications.length === 0) {
-          notifList.innerHTML = '<div class="notif-empty"><h4>No notifications</h4><p>You\'re all caught up.</p></div>';
-          bellBadge.style.display = 'none';
+          notifList.innerHTML =
+            '<div class="notif-empty">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>' +
+              '<h4>No notifications</h4>' +
+              '<p>You\'re all caught up.</p>' +
+            '</div>';
           return;
         }
-        var unreadCount = notifications.filter(function (n) { return !readNotifIds.has(n.id); }).length;
-        bellBadge.textContent = unreadCount;
-        bellBadge.style.display = unreadCount > 0 ? '' : 'none';
-        notifList.innerHTML = notifications.map(function (n) {
-          var unread = !readNotifIds.has(n.id);
-          return '<div class="notif-item' + (unread ? ' unread' : '') + '" data-nid="' + n.id + '">' +
-            (unread ? '<div class="notif-dot"></div>' : '<div class="notif-dot-empty"></div>') +
-            '<div class="notif-content"><p class="notif-msg">' + escapeHtml(n.message) + '</p><span class="notif-time">' + n.time + '</span></div>' +
-          '</div>';
-        }).join('');
-        notifList.querySelectorAll('.notif-item').forEach(function (item) {
-          item.addEventListener('click', function () {
-            readNotifIds.add(item.dataset.nid);
+        var html = '';
+        for (var i = 0; i < notifications.length; i++) {
+          var n = notifications[i];
+          html +=
+            '<div class="notif-item' + (n.read ? '' : ' unread') + '" data-nid="' + n.id + '">' +
+              (n.read ? '<div class="notif-dot-empty"></div>' : '<div class="notif-dot"></div>') +
+              '<div class="notif-icon">' +
+                (n.type === 'due' || n.type === 'reminder' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>') +
+              '</div>' +
+              '<div class="notif-content">' +
+                '<p class="notif-msg">' + escapeHtml(n.message) + '</p>' +
+                '<span class="notif-time">' + n.time + '</span>' +
+              '</div>' +
+            '</div>';
+        }
+        notifList.innerHTML = html;
+
+        var items = notifList.querySelectorAll('.notif-item');
+        for (var i = 0; i < items.length; i++) {
+          items[i].addEventListener('click', function () {
+            var nid = parseInt(this.dataset.nid);
+            for (var j = 0; j < notifications.length; j++) {
+              if (notifications[j].id === nid) { notifications[j].read = true; break; }
+            }
             renderNotifications();
+            updateBellBadge();
           });
-        });
+        }
       }
 
+      bellBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        notifPanel.classList.toggle('open');
+      });
+
+      document.addEventListener('click', function (e) {
+        if (!bellBtn.contains(e.target) && !notifPanel.contains(e.target)) {
+          notifPanel.classList.remove('open');
+        }
+      });
+
+      markAllRead.addEventListener('click', function () {
+        for (var i = 0; i < notifications.length; i++) {
+          notifications[i].read = true;
+        }
+        renderNotifications();
+        updateBellBadge();
+        showToast('All marked as read', 'success');
+      });
+
+      notifViewAllTodos.addEventListener('click', function () {
+        notifPanel.classList.remove('open');
+        switchNav('todos');
+      });
+
+      widgetViewAll.addEventListener('click', function () {
+        switchNav('todos');
+      });
+
+      // ---- Widget ----
       function renderWidget() {
-        var pending = todos.filter(function (t) { return !t.completed; }).slice(0, 3);
-        if (pending.length === 0) {
+        var pending = todos.filter(function (t) { return !t.completed; });
+        var upcoming = pending.slice(0, 3);
+        if (upcoming.length === 0) {
           widgetTodoList.innerHTML = '<div class="no-todo-widget">All tasks completed!</div>';
           return;
         }
-        widgetTodoList.innerHTML = pending.map(function (t) {
-          return '<div class="todo-widget-item">' +
-            '<button class="tw-checkbox" data-wtoggle="' + t.id + '"></button>' +
-            '<span class="tw-text">' + escapeHtml(t.title) + '</span>' +
-            (t.dueDate ? '<span class="tw-due">' + t.dueDate + '</span>' : '') +
-          '</div>';
-        }).join('');
-        widgetTodoList.querySelectorAll('[data-wtoggle]').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            toggleTodo(parseInt(btn.dataset.wtoggle, 10));
+        var html = '';
+        for (var i = 0; i < upcoming.length; i++) {
+          var t = upcoming[i];
+          html +=
+            '<div class="todo-widget-item">' +
+              '<button class="tw-checkbox' + (t.completed ? ' checked' : '') + '" data-wtoggle="' + t.id + '">' +
+                (t.completed ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : '') +
+              '</button>' +
+              '<span class="tw-text' + (t.completed ? ' done' : '') + '">' + escapeHtml(t.title) + '</span>' +
+              (t.due ? '<span class="tw-due">' + t.due + '</span>' : '') +
+            '</div>';
+        }
+        widgetTodoList.innerHTML = html;
+
+        var wToggles = widgetTodoList.querySelectorAll('[data-wtoggle]');
+        for (var i = 0; i < wToggles.length; i++) {
+          wToggles[i].addEventListener('click', function () {
+            var id = parseInt(this.dataset.wtoggle);
+            toggleTodo(id);
           });
-        });
+        }
       }
 
-      function setupEvents() {
-        themeBtn.addEventListener('click', toggleTheme);
-        document.getElementById('logoutBtn').addEventListener('click', function () {
-          window.NotelifyAuth.logout().finally(function () {
-            redirectToLogin();
-          });
-        });
-        document.getElementById('newNoteBtn').addEventListener('click', createNewNote);
-        document.getElementById('mobileNewBtn').addEventListener('click', createNewNote);
-        searchInput.addEventListener('input', loadAndRenderNotes);
-        sortSelect.addEventListener('change', loadAndRenderNotes);
-        gridViewBtn.addEventListener('click', function () {
-          currentView = 'grid';
-          gridViewBtn.classList.add('active');
-          listViewBtn.classList.remove('active');
-          renderNotes();
-        });
-        listViewBtn.addEventListener('click', function () {
-          currentView = 'list';
-          listViewBtn.classList.add('active');
-          gridViewBtn.classList.remove('active');
-          renderNotes();
-        });
-        document.querySelectorAll('.nav-item').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            switchNav(btn.dataset.nav);
-            closeMobileMenu();
-          });
-        });
-        document.querySelectorAll('.mobile-nav-btn').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            if (btn.classList.contains('mobile-new-btn')) return;
-            switchNav(btn.dataset.mnav);
-          });
-        });
-        sidebarToggle.addEventListener('click', function () {
-          sidebar.classList.toggle('collapsed');
-        });
-        mobileMenuBtn.addEventListener('click', function () {
-          document.body.classList.add('mobile-sidebar-open');
-          sidebarOverlay.classList.add('open');
-        });
-        sidebarOverlay.addEventListener('click', closeMobileMenu);
+      // ---- Overlay close (both modals) ----
+      editorOverlay.addEventListener('click', function () {
+        if (editorModal.classList.contains('open')) closeEditor();
+        if (todoModal.classList.contains('open')) closeTodoModal();
+      });
 
-        editorBack.addEventListener('click', closeEditor);
-        editorOverlay.addEventListener('click', function () {
-          if (editorModal.classList.contains('open')) closeEditor();
-          if (todoModal.classList.contains('open')) closeTodoModal();
-        });
-        editorStarBtn.addEventListener('click', function () {
-          if (editingNoteId == null) return;
-          toggleFav(editingNoteId);
-        });
-        editorTrashBtn.addEventListener('click', function () {
-          if (editingNoteId == null) return;
-          deleteNote(editingNoteId);
-          closeEditor();
-        });
-        editorTitle.addEventListener('input', function () {
-          editorSaved.querySelector('span').textContent = 'Saving...';
-          clearTimeout(saveTimer);
-          saveTimer = setTimeout(saveCurrentNote, 700);
-        });
-        editorBody.addEventListener('input', function () {
-          editorSaved.querySelector('span').textContent = 'Saving...';
-          clearTimeout(saveTimer);
-          saveTimer = setTimeout(saveCurrentNote, 700);
-        });
-
-        todoAddBtn.addEventListener('click', function () { openTodoModal(null); });
-        todoFormSave.addEventListener('click', saveTodoForm);
-        todoFormCancel.addEventListener('click', closeTodoModal);
-        todoFormDelete.addEventListener('click', function () {
-          if (editingTodoId != null) deleteTodo(editingTodoId);
-        });
-        todoSortSelect.addEventListener('change', function () {
-          currentTodoSort = todoSortSelect.value;
-          renderTodos();
-        });
-        document.querySelectorAll('.todo-filter-chip').forEach(function (chip) {
-          chip.addEventListener('click', function () {
-            document.querySelectorAll('.todo-filter-chip').forEach(function (c) { c.classList.remove('active'); });
-            chip.classList.add('active');
-            currentTodoFilter = chip.dataset.tfilter;
-            renderTodos();
-          });
-        });
-
-        bellBtn.addEventListener('click', function (e) {
-          e.stopPropagation();
-          notifPanel.classList.toggle('open');
-        });
-        document.addEventListener('click', function (e) {
-          if (!bellBtn.contains(e.target) && !notifPanel.contains(e.target)) {
-            notifPanel.classList.remove('open');
+      // ---- Check reminders (on init) ----
+      function checkReminders() {
+        var today = todayStr();
+        for (var i = 0; i < todos.length; i++) {
+          var t = todos[i];
+          if (t.completed) continue;
+          if (t.due && t.due === today) {
+            var exists = false;
+            for (var j = 0; j < notifications.length; j++) {
+              if (notifications[j].message.indexOf(t.title) !== -1 && notifications[j].type === 'due') { exists = true; break; }
+            }
+            if (!exists) {
+              notifications.unshift({ id: notifNextId++, message: 'Task "' + t.title + '" is due today', read: false, time: 'Just now', type: 'due' });
+            }
           }
-        });
-        markAllRead.addEventListener('click', function () {
-          notifications.forEach(function (n) { readNotifIds.add(n.id); });
-          renderNotifications();
-        });
-        notifViewAllTodos.addEventListener('click', function () {
-          notifPanel.classList.remove('open');
-          switchNav('todos');
-        });
-        widgetViewAll.addEventListener('click', function () { switchNav('todos'); });
+        }
+        updateBellBadge();
+        renderNotifications();
       }
 
-      function loadProfileAndBootstrap() {
-        window.NotelifyAuth.authFetch('/api/me')
-          .then(function (res) {
-            if (!res.ok) throw new Error('AUTH_REQUIRED');
-            return res.json();
-          })
-          .then(function (profile) {
-            setupUser(profile);
-            setupEvents();
-            return Promise.all([loadAndRenderNotes(), loadTodos()]);
-          })
-          .catch(function () {
-            redirectToLogin();
-          });
-      }
-
-      themeInit();
-      loadProfileAndBootstrap();
+      // ---- Init ----
+      updateBellBadge();
+      renderNotifications();
+      checkReminders();
+      renderWidget();
+      renderNotes();
     })();
   </script>
 </body>

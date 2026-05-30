@@ -1,0 +1,1057 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Notelify — Minimalist Note-Taking</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: oklch(97% 0.008 270);
+      --surface: oklch(100% 0 0);
+      --fg: oklch(18% 0.018 270);
+      --muted: oklch(50% 0.015 270);
+      --border: oklch(90% 0.008 270);
+      --accent: oklch(52% 0.19 270);
+      --accent-soft: color-mix(in oklch, var(--accent) 14%, transparent);
+      --accent-glow: color-mix(in oklch, var(--accent) 8%, transparent);
+      --accent-gradient: linear-gradient(135deg, oklch(52% 0.19 270), oklch(46% 0.18 290));
+      --glass-bg: color-mix(in oklch, var(--surface) 70%, transparent);
+      --glass-border: color-mix(in oklch, var(--surface) 20%, transparent);
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+      --shadow-lg: 0 12px 40px rgba(0,0,0,0.10);
+      --shadow-xl: 0 24px 80px rgba(0,0,0,0.14);
+      --font-display: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --font-mono: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+      --fs-h1: clamp(42px, 6.5vw, 80px);
+      --fs-h2: clamp(32px, 4vw, 48px);
+      --fs-h3: 22px;
+      --fs-lead: 19px;
+      --fs-body: 16px;
+      --fs-meta: 13px;
+      --gap-xs: 8px;
+      --gap-sm: 12px;
+      --gap-md: 20px;
+      --gap-lg: 32px;
+      --gap-xl: 56px;
+      --gap-2xl: 96px;
+      --container: 1120px;
+      --gutter: 24px;
+      --radius: 12px;
+      --radius-lg: 20px;
+      --radius-xl: 28px;
+      transition: background 0.3s, color 0.3s;
+    }
+    [data-theme="dark"] {
+      --bg: oklch(15% 0.01 270);
+      --surface: oklch(20% 0.015 270);
+      --fg: oklch(92% 0.005 270);
+      --muted: oklch(62% 0.01 270);
+      --border: oklch(28% 0.015 270);
+      --accent: oklch(62% 0.19 270);
+      --accent-soft: color-mix(in oklch, var(--accent) 18%, transparent);
+      --accent-glow: color-mix(in oklch, var(--accent) 10%, transparent);
+      --accent-gradient: linear-gradient(135deg, oklch(62% 0.19 270), oklch(55% 0.18 290));
+      --glass-bg: color-mix(in oklch, var(--surface) 60%, transparent);
+      --glass-border: color-mix(in oklch, var(--surface) 30%, transparent);
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.25);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.30);
+      --shadow-lg: 0 12px 40px rgba(0,0,0,0.35);
+      --shadow-xl: 0 24px 80px rgba(0,0,0,0.40);
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--font-body);
+      font-size: var(--fs-body);
+      line-height: 1.6;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    img, svg { display: block; max-width: 100%; }
+    a { color: inherit; text-decoration: none; }
+    button { font: inherit; cursor: pointer; }
+    p { text-wrap: pretty; }
+    h1, h2, h3, h4 { text-wrap: balance; }
+    ::selection { background: var(--accent-soft); color: var(--fg); }
+    .container { max-width: var(--container); margin-inline: auto; padding-inline: var(--gutter); }
+    .section { padding-block: clamp(56px, 10vw, var(--gap-2xl)); }
+    .stack { display: flex; flex-direction: column; }
+    .stack > * + * { margin-top: var(--gap-md); }
+    .row { display: flex; align-items: center; gap: var(--gap-md); }
+    .row-between { display: flex; align-items: center; justify-content: space-between; gap: var(--gap-md); }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--gap-lg); }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap-lg); }
+    @media (max-width: 920px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+    h1, .h1 { font-family: var(--font-display); font-size: var(--fs-h1); font-weight: 700; line-height: 1.05; letter-spacing: -0.03em; margin: 0; }
+    h2, .h2 { font-family: var(--font-display); font-size: var(--fs-h2); font-weight: 700; line-height: 1.12; letter-spacing: -0.025em; margin: 0; }
+    h3, .h3 { font-family: var(--font-display); font-size: var(--fs-h3); font-weight: 600; line-height: 1.3; letter-spacing: -0.01em; margin: 0; }
+    .lead { font-size: var(--fs-lead); line-height: 1.55; color: var(--muted); max-width: 60ch; margin: 0; }
+    .meta { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--muted); }
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin: 0 0 var(--gap-md);
+      font-weight: 600;
+    }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 24px;
+      border-radius: var(--radius);
+      border: 1px solid transparent;
+      font-size: 15px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary {
+      background: var(--accent-gradient);
+      color: #fff;
+      box-shadow: 0 4px 14px var(--accent-soft);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 6px 24px var(--accent-soft);
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: var(--glass-bg);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(8px);
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-ghost {
+      background: transparent;
+      color: var(--fg);
+      border: none;
+      padding-inline: 8px;
+    }
+    .btn-ghost:hover { color: var(--accent); }
+    .btn-sm { padding: 8px 16px; font-size: 13px; border-radius: 8px; }
+    .btn-full { width: 100%; justify-content: center; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      box-shadow: var(--shadow-sm);
+    }
+    .card-glass {
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+    }
+
+    .glass-nav {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--glass-border);
+    }
+    .nav-inner { display: flex; align-items: center; justify-content: space-between; padding-block: 16px; }
+    .logo { font-family: var(--font-display); font-size: 22px; font-weight: 700; letter-spacing: -0.02em; display: flex; align-items: center; gap: 8px; }
+    .logo-icon { width: 32px; height: 32px; border-radius: 8px; background: var(--accent-gradient); display: grid; place-items: center; color: #fff; font-size: 16px; font-weight: 700; }
+    .nav-links { display: flex; gap: var(--gap-lg); align-items: center; }
+    .nav-links a { font-size: 14px; font-weight: 500; color: var(--muted); transition: color 0.2s; position: relative; }
+    .nav-links a::after { content: ''; position: absolute; bottom: -4px; left: 0; width: 0; height: 2px; background: var(--accent); border-radius: 2px; transition: width 0.2s; }
+    .nav-links a:hover { color: var(--fg); }
+    .nav-links a:hover::after { width: 100%; }
+    .nav-actions { display: flex; align-items: center; gap: var(--gap-sm); }
+    .theme-toggle {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--glass-bg);
+      display: grid; place-items: center;
+      cursor: pointer;
+      color: var(--fg);
+      transition: all 0.2s;
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+    .theme-toggle svg { width: 18px; height: 18px; }
+    .theme-toggle .moon-icon { display: none; }
+    [data-theme="dark"] .theme-toggle .sun-icon { display: none; }
+    [data-theme="dark"] .theme-toggle .moon-icon { display: block; }
+    .mobile-toggle {
+      display: none;
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--glass-bg);
+      cursor: pointer;
+      color: var(--fg);
+      align-items: center; justify-content: center;
+    }
+    .mobile-toggle svg { width: 20px; height: 20px; }
+    .mobile-toggle .close-icon { display: none; }
+    .mobile-menu-open .mobile-toggle .menu-icon { display: none; }
+    .mobile-menu-open .mobile-toggle .close-icon { display: block; }
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .mobile-toggle { display: flex; }
+      .nav-inner .btn-primary { display: none; }
+      .mobile-menu-open .nav-links {
+        display: flex; flex-direction: column;
+        position: fixed; top: 73px; left: 0; right: 0;
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid var(--glass-border);
+        padding: 16px 24px 24px;
+        gap: 8px;
+        z-index: 99;
+      }
+      .mobile-menu-open .nav-links a { padding: 10px 0; font-size: 16px; }
+      .nav-links .btn-primary { display: none; }
+      .mobile-menu-open .nav-links .btn-primary { display: flex; margin-top: 8px; width: 100%; justify-content: center; }
+    }
+
+    .hero-gradient {
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-gradient::before {
+      content: '';
+      position: absolute;
+      top: -40%;
+      right: -20%;
+      width: 70%;
+      height: 140%;
+      background: radial-gradient(ellipse at center, var(--accent-glow) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-content { position: relative; z-index: 1; }
+    .hero-split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--gap-2xl);
+      align-items: center;
+      min-height: 70vh;
+    }
+    @media (max-width: 920px) {
+      .hero-split { grid-template-columns: 1fr; min-height: auto; gap: 48px; }
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--gap-md);
+    }
+    @media (max-width: 920px) {
+      .features-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 560px) {
+      .features-grid { grid-template-columns: 1fr; }
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px 24px;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.3s ease;
+    }
+    .feature-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--accent-soft);
+    }
+    .feature-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      background: var(--accent-soft);
+      display: grid; place-items: center;
+      color: var(--accent);
+      margin-bottom: var(--gap-md);
+    }
+    .feature-icon svg { width: 22px; height: 22px; }
+    .feature-card h3 { margin-bottom: 8px; font-size: 18px; }
+    .feature-card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+    .about-split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--gap-2xl);
+      align-items: center;
+    }
+    .about-image {
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      background: var(--accent-soft);
+      aspect-ratio: 4/3;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--border);
+    }
+    .about-image svg { width: 80px; height: 80px; color: var(--accent); opacity: 0.4; }
+    .about-text p { color: var(--muted); font-size: 16px; line-height: 1.7; margin: 16px 0 0; }
+    @media (max-width: 768px) {
+      .about-split { grid-template-columns: 1fr; gap: 32px; }
+    }
+
+    .cta-section {
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-section::before {
+      content: '';
+      position: absolute;
+      bottom: -30%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80%;
+      height: 100%;
+      background: radial-gradient(ellipse at center, var(--accent-glow) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .cta-inner { position: relative; z-index: 1; max-width: 640px; margin-inline: auto; }
+    .cta-inner h2 { margin-bottom: 16px; }
+    .cta-inner p { color: var(--muted); margin-bottom: 32px; font-size: 18px; }
+
+    .pagefoot { padding-block: var(--gap-xl); border-top: 1px solid var(--border); }
+    .pagefoot-inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--gap-md); }
+    .pagefoot-inner .copyright { color: var(--muted); font-size: 13px; }
+    .pagefoot-inner .footer-links { display: flex; gap: var(--gap-lg); }
+    .pagefoot-inner .footer-links a { color: var(--muted); font-size: 13px; transition: color 0.2s; }
+    .pagefoot-inner .footer-links a:hover { color: var(--fg); }
+
+
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .overlay.open { opacity: 1; pointer-events: auto; }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .modal.open { opacity: 1; pointer-events: auto; }
+    .modal-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-xl);
+      width: 100%;
+      max-width: 440px;
+      padding: 36px 32px 32px;
+      position: relative;
+      transform: translateY(20px) scale(0.98);
+      transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    .modal.open .modal-panel { transform: translateY(0) scale(1); }
+    .modal-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      transition: all 0.2s;
+    }
+    .modal-close:hover { background: var(--accent-soft); color: var(--accent); }
+    .modal-close svg { width: 18px; height: 18px; }
+    .modal-header { text-align: center; margin-bottom: 28px; }
+    .modal-header h2 { font-size: 24px; margin-bottom: 4px; }
+    .modal-header p { color: var(--muted); font-size: 14px; margin: 0; }
+    .modal-tabs {
+      display: flex;
+      background: var(--bg);
+      border-radius: var(--radius);
+      padding: 4px;
+      margin-bottom: 24px;
+      border: 1px solid var(--border);
+    }
+    .modal-tab {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      font-weight: 500;
+      font-size: 14px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .modal-tab.active { background: var(--surface); color: var(--fg); box-shadow: var(--shadow-sm); }
+    .modal-tab:hover:not(.active) { color: var(--fg); }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 6px; }
+    .form-group .input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--font-body);
+      font-size: 15px;
+      transition: all 0.2s;
+      outline: none;
+    }
+    .form-group .input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+    .form-group .input.has-error { border-color: oklch(55% 0.18 30); }
+    .form-group .error-msg { font-size: 12px; color: oklch(55% 0.18 30); margin-top: 4px; display: none; }
+    .form-group .error-msg.show { display: block; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-divider { height: 1px; background: var(--border); margin: 20px 0; }
+    .otp-row {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    .otp-input {
+      width: 48px;
+      height: 56px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 700;
+      text-align: center;
+      outline: none;
+      transition: all 0.2s;
+    }
+    .otp-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+    .otp-input.filled { border-color: var(--accent); background: var(--accent-soft); }
+    .otp-timer {
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+    .otp-timer .resend-btn {
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0;
+    }
+    .otp-timer .resend-btn:disabled { color: var(--muted); cursor: default; }
+    .auth-link {
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 20px;
+    }
+    .auth-link button {
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0;
+    }
+    .auth-link button:hover { text-decoration: underline; }
+    .forgot-link {
+      text-align: right;
+      margin-top: -8px;
+      margin-bottom: 16px;
+    }
+    .forgot-link button {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 12px;
+      cursor: pointer;
+      padding: 0;
+    }
+    .forgot-link button:hover { color: var(--accent); }
+    .modal-step { display: none; }
+    .modal-step.active { display: block; }
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .btn .spinner { margin: -2px 0; }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 20px;
+      box-shadow: var(--shadow-lg);
+      z-index: 500;
+      font-size: 14px;
+      font-weight: 500;
+      opacity: 0;
+      transition: all 0.35s cubic-bezier(0.23, 1, 0.32, 1);
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+    .toast-success { border-left: 4px solid oklch(55% 0.16 150); }
+    .toast-error { border-left: 4px solid oklch(55% 0.18 30); }
+    .toast-info { border-left: 4px solid var(--accent); }
+
+    .auth-form { display: block; }
+    .auth-form.hidden { display: none; }
+
+    .fade-in {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .fade-in.visible { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 480px) {
+      :root { --gutter: 16px; }
+      .modal-panel { padding: 28px 20px 24px; }
+      .otp-input { width: 42px; height: 50px; font-size: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="glass-nav" data-od-id="topnav">
+    <div class="container nav-inner">
+      <a href="#" class="logo">
+        <span class="logo-icon">N</span>
+        Notelify
+      </a>
+      <div class="nav-links">
+        <a href="#hero">Home</a>
+        <a href="#features">Features</a>
+        <a href="#about">About</a>
+      </div>
+      <div class="nav-actions">
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+          <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <button class="mobile-toggle" onclick="toggleMobile()" aria-label="Menu">
+          <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+          <svg class="close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <main id="content">
+    <section class="section hero-gradient" id="hero" data-od-id="hero">
+      <div class="container hero-content">
+        <div class="hero-split">
+          <div>
+            <p class="eyebrow">Notelify · v2.0</p>
+            <h1>Notes that feel like<br>they belong to you.</h1>
+            <p class="lead" style="margin-top: 20px;">A clean, distraction-free space for your thoughts. Write, organize, and share — all in one place.</p>
+            <div class="hero-cta" style="margin-top: 32px; display: flex; gap: 12px; flex-wrap: wrap;">
+              <button class="btn btn-primary" onclick="openAuth('signup')">Get Started</button>
+              <a href="#features" class="btn btn-secondary">Learn More</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="features" data-od-id="features">
+      <div class="container stack" style="gap: 48px;">
+        <div style="text-align: center; max-width: 36ch; margin-inline: auto;">
+          <p class="eyebrow">Why Notelify</p>
+          <h2>Everything you need, nothing you don't.</h2>
+        </div>
+        <div class="features-grid">
+          <div class="feature-card fade-in">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            </div>
+            <h3>Simplified</h3>
+            <p>No menus, no clutter. Just open and write. Your thoughts stay the focus from the moment you open the app.</p>
+          </div>
+          <div class="feature-card fade-in">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <h3>Responsive</h3>
+            <p>Looks and feels native on every screen — phone, tablet, or desktop. Your notes follow you everywhere.</p>
+          </div>
+          <div class="feature-card fade-in">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+            <h3>Secure</h3>
+            <p>End-to-end encrypted by default. Your personal notes stay private — we never read what you write.</p>
+          </div>
+          <div class="feature-card fade-in">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="12 19 7 7 3 12"/><path d="M21 12c0 5.523-4.477 10-10 10S1 17.523 1 12"/></svg>
+            </div>
+            <h3>Scalable</h3>
+            <p>From a single to-do to a thousand linked documents — our engine handles it without slowing down.</p>
+          </div>
+          <div class="feature-card fade-in">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </div>
+            <h3>Customizable</h3>
+            <p>Choose your themes, fonts, and layout. Make Notelify feel like your own personal writing environment.</p>
+          </div>
+          <div class="feature-card fade-in">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            </div>
+            <h3>Sharable</h3>
+            <p>Share a read-only link with one click. Recipients see exactly what you see — no account required.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="about" data-od-id="about">
+      <div class="container">
+        <div class="about-split">
+          <div class="about-image" style="overflow:hidden;">
+            <img src="notes-app2.png" alt="Notelify app screenshot" style="width:100%;height:100%;object-fit:cover;display:block;" />
+          </div>
+          <div class="about-text">
+            <p class="eyebrow">Our story</p>
+            <h2>Designed for the way your mind works.</h2>
+            <p>Notelify began with a simple observation: most note-taking apps are either too simple to be useful or so feature-packed they become distracting. We wanted something in between — an app that gets out of your way when you're in flow, yet has the depth you need when you're organizing.</p>
+            <p>Every interaction is built around the principle of zero friction. Open the app and you're already writing. Tag, search, and link notes without breaking your rhythm. It's not a tool you learn — it's a tool you use, instantly.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section cta-section" id="cta" data-od-id="cta">
+      <div class="container">
+        <div class="cta-inner">
+          <p class="eyebrow">Start writing</p>
+          <h2>Your first note is free.<br>Your second one will be, too.</h2>
+          <p>No credit card. No time limit. Just a blank page waiting for your words.</p>
+          <button class="btn btn-primary" onclick="openAuth('signup')" style="font-size:16px;padding:14px 32px;">Create Account</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="pagefoot" data-od-id="footer">
+    <div class="container">
+      <div class="pagefoot-inner">
+        <span class="copyright">&copy; 2026 Notelify · All rights reserved.</span>
+        <div class="footer-links">
+          <a href="#">Privacy</a>
+          <a href="#">Terms</a>
+          <a href="#">Contact</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <div class="overlay" id="overlay" onclick="closeAuth()"></div>
+
+  <div class="modal" id="authModal">
+    <div class="modal-panel">
+      <button class="modal-close" onclick="closeAuth()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+
+      <div class="modal-header">
+        <h2 id="modalTitle">Welcome</h2>
+        <p id="modalSub">Join Notelify to start writing.</p>
+      </div>
+
+      <div class="modal-tabs">
+        <button class="modal-tab active" id="tabLogin" onclick="switchAuthTab('login')">Login</button>
+        <button class="modal-tab" id="tabSignup" onclick="switchAuthTab('signup')">Sign Up</button>
+      </div>
+
+      <div id="authLogin" class="auth-form">
+        <div class="form-group">
+          <label for="loginEmail">Email or Username</label>
+          <input class="input" type="text" id="loginEmail" placeholder="you@example.com" autocomplete="email" />
+          <div class="error-msg" id="loginEmailError">Please enter your email or username.</div>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <input class="input" type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" />
+          <div class="error-msg" id="loginPassError">Please enter your password.</div>
+        </div>
+        <div class="forgot-link">
+          <button onclick="showToast('Password reset link sent to your email.','info')">Forgot password?</button>
+        </div>
+        <button class="btn btn-primary btn-full" id="loginBtn" onclick="handleLogin()">
+          <span id="loginText">Login</span>
+          <span class="spinner" id="loginSpinner" style="display:none;"></span>
+        </button>
+        <div class="auth-link">
+          Don't have an account? <button onclick="switchAuthTab('signup')">Sign up</button>
+        </div>
+      </div>
+
+      <div id="authSignup" class="auth-form hidden">
+        <div class="modal-step active" id="signupStep1">
+          <div class="form-group">
+            <label for="signupEmail">Email</label>
+            <input class="input" type="email" id="signupEmail" placeholder="you@example.com" autocomplete="email" />
+            <div class="error-msg" id="signupEmailError">Please enter a valid email.</div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="signupUser">Username</label>
+              <input class="input" type="text" id="signupUser" placeholder="yourname" />
+              <div class="error-msg" id="signupUserError">Username must be at least 3 characters.</div>
+            </div>
+            <div class="form-group">
+              <label for="signupPass">Password</label>
+              <input class="input" type="password" id="signupPass" placeholder="••••••••" autocomplete="new-password" />
+              <div class="error-msg" id="signupPassError">Password must be at least 6 characters.</div>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-full" id="sendOtpBtn" onclick="sendOTP()">
+            <span id="sendOtpText">Send OTP</span>
+            <span class="spinner" id="sendOtpSpinner" style="display:none;"></span>
+          </button>
+          <div class="auth-link">
+            Already have an account? <button onclick="switchAuthTab('login')">Login</button>
+          </div>
+        </div>
+
+        <div class="modal-step" id="signupStep2">
+          <p style="text-align:center;color:var(--muted);font-size:14px;margin-bottom:8px;">Enter the 6-digit code sent to</p>
+          <p style="text-align:center;font-size:15px;font-weight:600;margin-bottom:20px;" id="otpEmailDisplay">you@example.com</p>
+          <div class="otp-row" id="otpRow">
+          </div>
+          <div class="error-msg" id="otpError" style="text-align:center;margin-bottom:12px;display:none;">Invalid OTP. Please try again.</div>
+          <div class="otp-timer">
+            <span id="otpTimerText">Resend code in <strong id="otpCountdown">30</strong>s</span>
+            <button class="resend-btn" id="resendOtpBtn" onclick="resendOTP()" disabled>Resend OTP</button>
+          </div>
+          <button class="btn btn-primary btn-full" id="verifyBtn" onclick="verifyOTP()">
+            <span id="verifyText">Verify &amp; Create Account</span>
+            <span class="spinner" id="verifySpinner" style="display:none;"></span>
+          </button>
+          <div class="auth-link">
+            <button onclick="goBackToSignupStep1()">← Change email or password</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ---- Theme ----
+    var theme = localStorage.getItem('notelify-theme') || 'light';
+    if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    function toggleTheme() {
+      var t = document.documentElement.getAttribute('data-theme');
+      var next = t === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('notelify-theme', next);
+    }
+
+    // ---- Mobile nav ----
+    function toggleMobile() {
+      document.body.classList.toggle('mobile-menu-open');
+    }
+    function closeMobile() {
+      document.body.classList.remove('mobile-menu-open');
+    }
+
+    // ---- Auth modal ----
+    var currentAuthTab = 'login';
+    var authUserEmail = '';
+    var authUsername = '';
+    var otpCode = '';
+    var otpTimer = null;
+    var otpRemaining = 0;
+    var generatedOtp = '';
+
+    function openAuth(tab) {
+      document.getElementById('overlay').classList.add('open');
+      document.getElementById('authModal').classList.add('open');
+      document.body.style.overflow = 'hidden';
+      switchAuthTab(tab);
+    }
+
+    function closeAuth() {
+      document.getElementById('overlay').classList.remove('open');
+      document.getElementById('authModal').classList.remove('open');
+      document.body.style.overflow = '';
+      resetOTPTimer();
+      resetSignupForm();
+    }
+
+    function switchAuthTab(tab) {
+      currentAuthTab = tab;
+      document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
+      document.getElementById('tabSignup').classList.toggle('active', tab === 'signup');
+      document.getElementById('authLogin').classList.toggle('hidden', tab !== 'login');
+      document.getElementById('authSignup').classList.toggle('hidden', tab !== 'signup');
+      var title = tab === 'login' ? 'Welcome back' : 'Create your account';
+      var sub = tab === 'login' ? 'Login to access your notes.' : 'Join Notelify to start writing.';
+      document.getElementById('modalTitle').textContent = title;
+      document.getElementById('modalSub').textContent = sub;
+      resetOTPTimer();
+      resetSignupForm();
+    }
+
+    // ---- Login ----
+    function handleLogin() {
+      var email = document.getElementById('loginEmail').value.trim();
+      var pass = document.getElementById('loginPassword').value;
+      var hasErr = false;
+      if (!email) { showError('loginEmailError'); hasErr = true; } else { hideError('loginEmailError'); }
+      if (!pass) { showError('loginPassError'); hasErr = true; } else { hideError('loginPassError'); }
+      if (hasErr) return;
+      var btn = document.getElementById('loginBtn');
+      var txt = document.getElementById('loginText');
+      var spin = document.getElementById('loginSpinner');
+      txt.style.display = 'none';
+      spin.style.display = 'inline-block';
+      btn.disabled = true;
+      setTimeout(function () {
+        txt.style.display = 'inline';
+        spin.style.display = 'none';
+        btn.disabled = false;
+        closeAuth();
+        showToast('Welcome back, ' + email.split('@')[0] + '! Redirecting to your dashboard…', 'success');
+        setTimeout(function () { window.location.href = 'dashboard.html?user=' + encodeURIComponent(email.split('@')[0]); }, 1200);
+      }, 1200);
+    }
+
+    // ---- Signup ----
+    function showError(id) { document.getElementById(id).classList.add('show'); }
+    function hideError(id) { document.getElementById(id).classList.remove('show'); }
+
+    function sendOTP() {
+      var email = document.getElementById('signupEmail').value.trim();
+      var user = document.getElementById('signupUser').value.trim();
+      var pass = document.getElementById('signupPass').value;
+      var hasErr = false;
+      if (!email || !email.includes('@')) { showError('signupEmailError'); hasErr = true; } else { hideError('signupEmailError'); }
+      if (!user || user.length < 3) { showError('signupUserError'); hasErr = true; } else { hideError('signupUserError'); }
+      if (!pass || pass.length < 6) { showError('signupPassError'); hasErr = true; } else { hideError('signupPassError'); }
+      if (hasErr) return;
+      var btn = document.getElementById('sendOtpBtn');
+      var txt = document.getElementById('sendOtpText');
+      var spin = document.getElementById('sendOtpSpinner');
+      txt.style.display = 'none';
+      spin.style.display = 'inline-block';
+      btn.disabled = true;
+
+      setTimeout(function () {
+        generatedOtp = '123456';
+        authUserEmail = email;
+        authUsername = user;
+        document.getElementById('otpEmailDisplay').textContent = email;
+        document.getElementById('signupStep1').classList.remove('active');
+        document.getElementById('signupStep2').classList.add('active');
+        document.getElementById('modalTitle').textContent = 'Verify your email';
+        document.getElementById('modalSub').textContent = 'Enter the 6-digit code sent to your email.';
+        txt.style.display = 'inline';
+        spin.style.display = 'none';
+        btn.disabled = false;
+        setupOTPInputs();
+        startOTPTimer();
+        console.log('OTP for', email, ':', generatedOtp);
+        showToast('OTP sent to ' + email + ' (demo: 123456)', 'info');
+      }, 1000);
+    }
+
+    function setupOTPInputs() {
+      var row = document.getElementById('otpRow');
+      row.innerHTML = '';
+      for (var i = 0; i < 6; i++) {
+        var inp = document.createElement('input');
+        inp.className = 'otp-input';
+        inp.type = 'text';
+        inp.maxLength = 1;
+        inp.inputMode = 'numeric';
+        inp.dataset.idx = i;
+        inp.addEventListener('input', function (e) {
+          var val = e.target.value;
+          if (!/^\d$/.test(val)) { e.target.value = ''; return; }
+          e.target.classList.toggle('filled', val !== '');
+          var next = parseInt(e.target.dataset.idx) + 1;
+          if (next < 6) row.children[next].focus();
+        });
+        inp.addEventListener('keydown', function (e) {
+          if (e.key === 'Backspace' && !e.target.value) {
+            var prev = parseInt(e.target.dataset.idx) - 1;
+            if (prev >= 0) { row.children[prev].focus(); row.children[prev].value = ''; row.children[prev].classList.remove('filled'); }
+          }
+        });
+        inp.addEventListener('paste', function (e) {
+          e.preventDefault();
+          var paste = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
+          for (var i = 0; i < Math.min(paste.length, 6); i++) {
+            row.children[i].value = paste[i];
+            row.children[i].classList.toggle('filled', true);
+          }
+          var next = Math.min(paste.length, 5);
+          row.children[next].focus();
+        });
+        row.appendChild(inp);
+      }
+      row.children[0].focus();
+    }
+
+    function startOTPTimer() {
+      resetOTPTimer();
+      otpRemaining = 30;
+      document.getElementById('otpCountdown').textContent = otpRemaining;
+      document.getElementById('resendOtpBtn').disabled = true;
+      document.getElementById('otpTimerText').style.display = 'inline';
+      otpTimer = setInterval(function () {
+        otpRemaining--;
+        document.getElementById('otpCountdown').textContent = otpRemaining;
+        if (otpRemaining <= 0) {
+          clearInterval(otpTimer);
+          otpTimer = null;
+          document.getElementById('otpTimerText').style.display = 'none';
+          document.getElementById('resendOtpBtn').disabled = false;
+        }
+      }, 1000);
+    }
+
+    function resetOTPTimer() {
+      if (otpTimer) { clearInterval(otpTimer); otpTimer = null; }
+      document.getElementById('otpTimerText').style.display = 'inline';
+      document.getElementById('resendOtpBtn').disabled = true;
+    }
+
+    function resendOTP() {
+      generatedOtp = '123456';
+      startOTPTimer();
+      console.log('Resent OTP:', generatedOtp);
+      showToast('OTP resent to ' + authUserEmail + ' (demo: 123456)', 'info');
+    }
+
+    function verifyOTP() {
+      var row = document.getElementById('otpRow');
+      var entered = '';
+      for (var i = 0; i < 6; i++) entered += row.children[i].value;
+      var errEl = document.getElementById('otpError');
+      if (entered.length < 6 || entered !== generatedOtp) {
+        errEl.style.display = 'block';
+        return;
+      }
+      errEl.style.display = 'none';
+      var btn = document.getElementById('verifyBtn');
+      var txt = document.getElementById('verifyText');
+      var spin = document.getElementById('verifySpinner');
+      txt.textContent = 'Creating account…';
+      spin.style.display = 'inline-block';
+      btn.disabled = true;
+
+      setTimeout(function () {
+        closeAuth();
+        showToast('Account created! Welcome to Notelify, ' + authUsername + '!', 'success');
+        setTimeout(function () { window.location.href = 'dashboard.html?user=' + encodeURIComponent(authUsername); }, 1200);
+      }, 1000);
+    }
+
+    function goBackToSignupStep1() {
+      document.getElementById('signupStep1').classList.add('active');
+      document.getElementById('signupStep2').classList.remove('active');
+      document.getElementById('modalTitle').textContent = 'Create your account';
+      document.getElementById('modalSub').textContent = 'Join Notelify to start writing.';
+      resetOTPTimer();
+    }
+
+    function resetSignupForm() {
+      document.getElementById('signupStep1').classList.add('active');
+      document.getElementById('signupStep2').classList.remove('active');
+      document.getElementById('otpRow').innerHTML = '';
+      document.getElementById('otpError').style.display = 'none';
+      document.getElementById('modalTitle').textContent = 'Create your account';
+      document.getElementById('modalSub').textContent = 'Join Notelify to start writing.';
+    }
+
+    // ---- Toast ----
+    function showToast(msg, type) {
+      var el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className = 'toast toast-' + (type || 'info');
+      el.classList.add('show');
+      clearTimeout(el._hide);
+      el._hide = setTimeout(function () { el.classList.remove('show'); }, 3000);
+    }
+
+    // ---- Fade-in on scroll ----
+    function handleFadeIns() {
+      var els = document.querySelectorAll('.fade-in');
+      for (var i = 0; i < els.length; i++) {
+        var rect = els[i].getBoundingClientRect();
+        if (rect.top < window.innerHeight - 60) els[i].classList.add('visible');
+      }
+    }
+    window.addEventListener('scroll', handleFadeIns);
+    window.addEventListener('load', handleFadeIns);
+
+    // ---- Close auth modal on Escape ----
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && document.getElementById('authModal').classList.contains('open')) closeAuth();
+    });
+
+    // ---- Close mobile on nav-link click ----
+    document.querySelectorAll('.nav-links a').forEach(function (a) {
+      a.addEventListener('click', function () { if (document.body.classList.contains('mobile-menu-open')) closeMobile(); });
+    });
+  </script>
+</body>
+</html>

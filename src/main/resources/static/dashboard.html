@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Notelify Dashboard</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #f6f7fb;
+      color: #111827;
+    }
+    .card {
+      width: min(90vw, 560px);
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 28px;
+    }
+    p {
+      margin: 0;
+      color: #4b5563;
+      line-height: 1.5;
+    }
+    .actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+    a, button {
+      display: inline-block;
+      color: #4338ca;
+      text-decoration: none;
+      font-weight: 600;
+      border: 1px solid #c7d2fe;
+      border-radius: 10px;
+      background: #eef2ff;
+      padding: 10px 14px;
+      cursor: pointer;
+    }
+    button {
+      font: inherit;
+    }
+    .status {
+      margin-top: 14px;
+      font-size: 13px;
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1 id="title">Welcome to your dashboard</h1>
+    <p id="profile">Loading your profile...</p>
+    <p class="status" id="status"></p>
+    <div class="actions">
+      <button id="refreshBtn">Fetch Protected Data</button>
+      <button id="logoutBtn">Logout</button>
+      <a href="/">Back to landing page</a>
+    </div>
+  </main>
+
+  <script src="/js/auth-client.js"></script>
+  <script>
+    function updateStatus(msg) {
+      document.getElementById('status').textContent = msg;
+    }
+
+    function goToLogin() {
+      window.location.href = '/';
+    }
+
+    function fetchProfile() {
+      updateStatus('Checking session...');
+      return window.NotelifyAuth.authFetch('/api/me')
+        .then(function (res) {
+          if (!res.ok) {
+            throw new Error('PROFILE_ERROR');
+          }
+          return res.json();
+        })
+        .then(function (data) {
+          document.getElementById('title').textContent = 'Welcome, ' + data.username;
+          document.getElementById('profile').textContent = 'Signed in as ' + data.email + '.';
+          updateStatus('Session active. Access token refreshes automatically when needed.');
+        })
+        .catch(function (err) {
+          if (err && err.message === 'AUTH_REQUIRED') {
+            updateStatus('Session expired. Redirecting to login...');
+            setTimeout(goToLogin, 800);
+            return;
+          }
+          updateStatus('Could not load your profile.');
+        });
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', function () {
+      fetchProfile();
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', function () {
+      updateStatus('Logging out...');
+      window.NotelifyAuth.logout().finally(function () {
+        goToLogin();
+      });
+    });
+
+    fetchProfile();
+    setInterval(fetchProfile, 25000);
+  </script>
+</body>
+</html>

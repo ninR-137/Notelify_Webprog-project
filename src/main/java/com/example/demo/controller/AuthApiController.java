@@ -66,7 +66,11 @@ public class AuthApiController {
 			return ResponseEntity.badRequest().body(new AuthResponse(false, "An account with this email already exists."));
 		}
 
-		emailOtpService.sendSignupOtp(request.email(), request.username(), request.password());
+		try {
+			emailOtpService.sendSignupOtp(request.email(), request.username(), request.password());
+		} catch (IllegalStateException ex) {
+			return ResponseEntity.status(503).body(new AuthResponse(false, "OTP email service is unavailable. Please try again later."));
+		}
 		return ResponseEntity.ok(new AuthResponse(true, "OTP sent to your email."));
 	}
 

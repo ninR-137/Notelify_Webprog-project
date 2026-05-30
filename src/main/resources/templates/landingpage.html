@@ -881,7 +881,7 @@
         window.NotelifyAuth.setSession(result.data);
         closeAuth();
         showToast('Welcome back, ' + (result.data.username || email.split('@')[0]) + '!', 'success');
-        setTimeout(function () { window.location.href = 'dashboard.html'; }, 800);
+        setTimeout(function () { window.location.href = '/dashboard'; }, 800);
       }).catch(function () {
         txt.style.display = 'inline';
         spin.style.display = 'none';
@@ -1102,7 +1102,7 @@
         spin.style.display = 'none';
         btn.disabled = false;
         showToast('Account created! Welcome to Notelify, ' + authUsername + '!', 'success');
-        setTimeout(function () { window.location.href = 'dashboard.html'; }, 800);
+        setTimeout(function () { window.location.href = '/dashboard'; }, 800);
       }).catch(function () {
         errEl.style.display = 'block';
         txt.textContent = 'Verify & Create Account';
@@ -1158,6 +1158,14 @@
     document.querySelectorAll('.nav-links a').forEach(function (a) {
       a.addEventListener('click', function () { if (document.body.classList.contains('mobile-menu-open')) closeMobile(); });
     });
+
+    // If redirected from an expired/invalid JWT session, open the login modal directly.
+    (function openLoginFromQuery() {
+      var params = new URLSearchParams(window.location.search || '');
+      if (params.get('auth') === 'login') {
+        openAuth('login');
+      }
+    })();
   </script>
 </body>
 </html>

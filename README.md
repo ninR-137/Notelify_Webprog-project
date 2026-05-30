@@ -1,6 +1,6 @@
 # Notelify Demo App
 
-Spring Boot web app with a landing page, OTP email verification, JWT authentication, refresh-token rotation, and a protected profile endpoint.
+Spring Boot web app with a landing page, OTP email verification, JWT authentication with refresh-token rotation, and an authenticated dashboard backed by persisted notes and todos.
 
 ## Tech Stack
 
@@ -9,7 +9,7 @@ Spring Boot web app with a landing page, OTP email verification, JWT authenticat
 - Spring Web MVC
 - Spring Security
 - Thymeleaf
-- Spring Data JPA (H2 for runtime)
+- Spring Data JPA (H2)
 - Spring Mail (Gmail SMTP)
 - JJWT
 
@@ -23,6 +23,14 @@ src/main/java/com/example/demo
     HomeController.java
     AuthApiController.java
     UserApiController.java
+    NoteApiController.java
+    TodoApiController.java
+  entity/
+    NoteEntity.java
+    TodoEntity.java
+  repository/
+    NoteRepository.java
+    TodoRepository.java
   security/
     JwtAuthenticationFilter.java
   service/
@@ -30,6 +38,8 @@ src/main/java/com/example/demo
     EmailOtpService.java
     JwtService.java
     RefreshTokenService.java
+    NoteService.java
+    TodoService.java
   dto/
     auth/
       AuthResponse.java
@@ -40,6 +50,14 @@ src/main/java/com/example/demo
       SendOtpRequest.java
       TokenPair.java
       VerifyOtpRequest.java
+    note/
+      NoteFlagRequest.java
+      NoteResponse.java
+      NoteUpsertRequest.java
+    todo/
+      TodoFlagRequest.java
+      TodoResponse.java
+      TodoUpsertRequest.java
     user/
       UserProfileResponse.java
 
@@ -52,6 +70,9 @@ src/main/resources
     js/
       auth-client.js
   application.properties
+
+.env.example
+.env (local only, gitignored)
 ```
 
 ## Key Features
@@ -62,6 +83,9 @@ src/main/resources
 - JWT access tokens and refresh tokens.
 - Automatic refresh on the frontend when access token is near expiry or rejected.
 - Logout revokes refresh token and clears local session.
+- Authenticated dashboard powered by real APIs (no mock dashboard data).
+- Persisted notes: create, list, update, favorite, soft-delete, and permanent delete.
+- Persisted todos: create, list, update, complete toggle, and delete.
 
 ## Authentication Flow
 
@@ -87,10 +111,65 @@ src/main/resources
 ### Protected
 
 - GET /api/me
+- GET /api/notes?view=all|favorites|trash&search=&sort=recent|oldest|a-z|z-a
+- POST /api/notes
+- PUT /api/notes/{id}
+- PATCH /api/notes/{id}/favorite
+- PATCH /api/notes/{id}/deleted
+- DELETE /api/notes/{id}
+- GET /api/todos
+- POST /api/todos
+- PUT /api/todos/{id}
+- PATCH /api/todos/{id}/completed
+- DELETE /api/todos/{id}
+
+### Example Payloads
+
+Create/Update note:
+
+```json
+{
+  "title": "Sprint planning",
+  "content": "Finalize backlog and assign owners",
+  "category": "Work",
+  "color": "blue"
+}
+```
+
+Patch note favorite/deleted:
+
+```json
+{
+  "value": true
+}
+```
+
+Create/Update todo:
+
+```json
+{
+  "title": "Prepare release notes",
+  "description": "Summarize completed stories and fixes",
+  "priority": "high",
+  "dueDate": "2026-06-15"
+}
+```
+
+Patch todo completed:
+
+```json
+{
+  "value": true
+}
+```
 
 ## Configuration
 
-Edit values in src/main/resources/application.properties:
+Configuration is read from `src/main/resources/application.properties` and environment-backed values loaded via:
+
+- `spring.config.import=optional:file:.env[.properties]`
+
+Create your local `.env` from `.env.example` and provide real values:
 
 - spring.mail.* for SMTP
 - app.mail.from
@@ -98,6 +177,11 @@ Edit values in src/main/resources/application.properties:
 - app.jwt.secret
 - app.jwt.access-token-minutes
 - app.jwt.refresh-token-days
+
+Important:
+
+- `.env` is gitignored and should never be committed.
+- Use a strong random value for `app.jwt.secret`.
 
 Security note:
 Do not commit real credentials or production JWT secrets. Move them to environment variables or a secret manager before deployment.
@@ -119,10 +203,12 @@ Run tests:
 Open app:
 
 - http://localhost:8080/
+- Dashboard (after login): http://localhost:8080/dashboard
 
 ## Current Limitations
 
 - Users and refresh tokens are in-memory only.
 - No persistent user registration storage yet.
 - Rate limiting and anti-abuse controls are not implemented yet.
+- Notes/todos are persisted, but no pagination is implemented yet.
 

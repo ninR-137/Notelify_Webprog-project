@@ -79,8 +79,11 @@ public class NoteService {
 		String content = request == null || isBlank(request.content()) ? "No content" : request.content().trim();
 		String category = request == null || isBlank(request.category()) ? "Personal" : request.category().trim();
 		List<String> tags = request == null || request.tags() == null
-			? List.of()
-			: request.tags().stream().filter(tag -> !isBlank(tag)).map(String::trim).toList();
+			? new ArrayList<>()
+			: request.tags().stream()
+				.filter(tag -> !isBlank(tag))
+				.map(String::trim)
+				.collect(java.util.stream.Collectors.toCollection(ArrayList::new));
 
 		note.setTitle(title);
 		note.setContent(content);

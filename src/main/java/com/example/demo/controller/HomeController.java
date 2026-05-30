@@ -10,4 +10,9 @@ public class HomeController {
 	public String landingPage() {
 		return "landingpage";
 	}
+
+	@GetMapping("/dashboard")
+	public String dashboardPage() {
+		return "dashboard";
+	}
 }

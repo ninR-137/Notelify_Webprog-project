@@ -2,11 +2,11 @@ package com.example.demo.config;
 
 import com.example.demo.security.JwtAuthenticationFilter;
 import com.example.demo.service.AppUserService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -31,7 +31,7 @@ public class SecurityConfig {
 					"/api/auth/**",
 					"/api/public/**",
 					"/notes-app2.png",
-					"/dashboard.html",
+					"/dashboard",
 					"/css/**",
 					"/js/**",
 					"/images/**",
@@ -41,9 +41,13 @@ public class SecurityConfig {
 				.anyRequest().authenticated()
 			)
 			.formLogin(form -> form.disable())
-			.httpBasic(Customizer.withDefaults())
+			.httpBasic(httpBasic -> httpBasic.disable())
 			.csrf(csrf -> csrf.disable())
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+			.exceptionHandling(ex -> ex
+				.authenticationEntryPoint((request, response, authException) -> response.sendError(HttpServletResponse.SC_UNAUTHORIZED))
+				.accessDeniedHandler((request, response, accessDeniedException) -> response.sendError(HttpServletResponse.SC_FORBIDDEN))
+			)
 			.authenticationProvider(authenticationProvider)
 			.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 			.headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()));

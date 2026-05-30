@@ -89,7 +89,7 @@ public class NoteEntity {
 	}
 
 	public void setTags(List<String> tags) {
-		this.tags = tags;
+		this.tags = tags == null ? new ArrayList<>() : new ArrayList<>(tags);
 	}
 
 	public boolean isFavorited() {

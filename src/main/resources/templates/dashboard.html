@@ -1539,6 +1539,7 @@
       var currentTodoFilter = 'all';
       var currentTodoSort = 'due';
       var editingNoteId = null;
+      var editingNoteFavorited = false;
       var editingTodoId = null;
       var saveTimer = null;
 
@@ -1820,8 +1821,9 @@
         }
         editorTitle.value = note.title;
         editorBody.value = note.content;
-        editorStarBtn.classList.toggle('favorited', !!note.favorited);
-        editorStarBtn.querySelector('svg').setAttribute('fill', note.favorited ? 'currentColor' : 'none');
+        editingNoteFavorited = !!note.favorited;
+        editorStarBtn.classList.toggle('favorited', editingNoteFavorited);
+        editorStarBtn.querySelector('svg').setAttribute('fill', editingNoteFavorited ? 'currentColor' : 'none');
         editorOverlay.classList.add('open');
         editorModal.classList.add('open');
         document.body.style.overflow = 'hidden';
@@ -1831,10 +1833,7 @@
         if (editingNoteId == null) {
           return Promise.resolve();
         }
-        var note = notes.find(function (n) { return n.id === editingNoteId; });
-        if (!note) {
-          return Promise.resolve();
-        }
+        var note = notes.find(function (n) { return n.id === editingNoteId; }) || {};
         return authJson('/api/notes/' + editingNoteId, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -1843,7 +1842,7 @@
             content: editorBody.value.trim() || 'No content',
             category: note.category || 'Personal',
             tags: note.tags || [],
-            favorited: !!note.favorited
+            favorited: !!editingNoteFavorited
           })
         }).then(function (updated) {
           for (var i = 0; i < notes.length; i++) {
@@ -1852,18 +1851,25 @@
               break;
             }
           }
+          if (editingNoteId === updated.id) {
+            editingNoteFavorited = !!updated.favorited;
+            editorStarBtn.classList.toggle('favorited', editingNoteFavorited);
+            editorStarBtn.querySelector('svg').setAttribute('fill', editingNoteFavorited ? 'currentColor' : 'none');
+          }
           editorSaved.querySelector('span').textContent = 'Saved';
           editorTimestamp.textContent = 'Last saved just now';
         });
       }
 
-      function closeEditor() {
+      function closeEditor(skipSave) {
         clearTimeout(saveTimer);
-        saveCurrentNote().finally(function () {
+        var closePromise = skipSave ? Promise.resolve() : saveCurrentNote().catch(function () { return null; });
+        closePromise.finally(function () {
           editorOverlay.classList.remove('open');
           editorModal.classList.remove('open');
           document.body.style.overflow = '';
           editingNoteId = null;
+          editingNoteFavorited = false;
           renderNotes();
         });
       }
@@ -1871,13 +1877,29 @@
       function toggleFav(id) {
         var note = notes.find(function (n) { return n.id === id; });
         if (!note) return;
+        var originalFavorited = !!note.favorited;
+        var nextFavorited = !originalFavorited;
+
+        note.favorited = nextFavorited;
+        if (editingNoteId === id) {
+          editingNoteFavorited = nextFavorited;
+          editorStarBtn.classList.toggle('favorited', nextFavorited);
+          editorStarBtn.querySelector('svg').setAttribute('fill', nextFavorited ? 'currentColor' : 'none');
+        }
+
         authJson('/api/notes/' + id + '/favorite', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ value: !note.favorited })
+          body: JSON.stringify({ value: nextFavorited })
         }).then(function () {
           loadAndRenderNotes();
         }).catch(function (err) {
+          note.favorited = originalFavorited;
+          if (editingNoteId === id) {
+            editingNoteFavorited = originalFavorited;
+            editorStarBtn.classList.toggle('favorited', originalFavorited);
+            editorStarBtn.querySelector('svg').setAttribute('fill', originalFavorited ? 'currentColor' : 'none');
+          }
           showToast(err.message || 'Could not update favorite.', 'error');
         });
       }
@@ -2222,9 +2244,9 @@
         });
         sidebarOverlay.addEventListener('click', closeMobileMenu);
 
-        editorBack.addEventListener('click', closeEditor);
+        editorBack.addEventListener('click', function () { closeEditor(false); });
         editorOverlay.addEventListener('click', function () {
-          if (editorModal.classList.contains('open')) closeEditor();
+          if (editorModal.classList.contains('open')) closeEditor(false);
           if (todoModal.classList.contains('open')) closeTodoModal();
         });
         editorStarBtn.addEventListener('click', function () {
@@ -2234,7 +2256,7 @@
         editorTrashBtn.addEventListener('click', function () {
           if (editingNoteId == null) return;
           deleteNote(editingNoteId);
-          closeEditor();
+          closeEditor(true);
         });
         editorTitle.addEventListener('input', function () {
           editorSaved.querySelector('span').textContent = 'Saving...';

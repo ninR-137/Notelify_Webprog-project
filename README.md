@@ -64,8 +64,8 @@ src/main/java/com/example/demo
 src/main/resources
   templates/
     landingpage.html
-  static/
     dashboard.html
+  static/
     notes-app2.png
     js/
       auth-client.js
@@ -86,6 +86,8 @@ src/main/resources
 - Authenticated dashboard powered by real APIs (no mock dashboard data).
 - Persisted notes: create, list, update, favorite, soft-delete, and permanent delete.
 - Persisted todos: create, list, update, complete toggle, and delete.
+- Day-based todo reminders (for date-only due dates) with dashboard notifications.
+- Dashboard is served via Thymeleaf route `/dashboard`.
 
 ## Authentication Flow
 
@@ -96,6 +98,7 @@ src/main/resources
 5. Protected calls use Authorization: Bearer accessToken.
 6. If token is close to expiry or a 401 occurs, frontend calls /api/auth/refresh.
 7. If refresh fails, frontend clears session and forces relogin.
+8. If an access token references a missing in-memory user (for example after restart), requests continue unauthenticated and return 401 for protected APIs.
 
 ## API Summary
 
@@ -132,7 +135,8 @@ Create/Update note:
   "title": "Sprint planning",
   "content": "Finalize backlog and assign owners",
   "category": "Work",
-  "color": "blue"
+  "tags": ["planning", "sprint"],
+  "favorited": false
 }
 ```
 
@@ -151,7 +155,8 @@ Create/Update todo:
   "title": "Prepare release notes",
   "description": "Summarize completed stories and fixes",
   "priority": "high",
-  "dueDate": "2026-06-15"
+  "dueDate": "2026-06-15",
+  "reminderDays": 3
 }
 ```
 
@@ -211,4 +216,5 @@ Open app:
 - No persistent user registration storage yet.
 - Rate limiting and anti-abuse controls are not implemented yet.
 - Notes/todos are persisted, but no pagination is implemented yet.
+- Because users are in-memory, existing JWTs may no longer map to a user after app restart and will require re-login.
 

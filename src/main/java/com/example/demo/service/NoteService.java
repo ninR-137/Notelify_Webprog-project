@@ -76,7 +76,7 @@ public class NoteService {
 
 	private void applyUpsert(NoteEntity note, NoteUpsertRequest request) {
 		String title = request == null || isBlank(request.title()) ? "Untitled" : request.title().trim();
-		String content = request == null || isBlank(request.content()) ? "No content" : request.content().trim();
+		String content = request == null || request.content() == null ? "" : request.content();
 		String category = request == null || isBlank(request.category()) ? "Personal" : request.category().trim();
 		List<String> tags = request == null || request.tags() == null
 			? new ArrayList<>()

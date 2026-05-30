@@ -802,8 +802,9 @@
       box-shadow: var(--shadow-xl);
       width: 100%;
       max-width: 1100px;
-      max-height: 92vh;
-      min-height: min(78vh, 820px);
+      max-height: min(92vh, 820px);
+      height: min(92vh, 820px);
+      min-height: min(92vh, 820px);
       display: flex;
       flex-direction: column;
       position: relative;
@@ -885,15 +886,16 @@
     }
     .editor-link-popover {
       position: absolute;
-      top: 102px;
-      right: 18px;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       width: min(320px, calc(100% - 36px));
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 12px;
       box-shadow: var(--shadow-lg);
       padding: 14px;
-      z-index: 2;
+      z-index: 5;
     }
     .editor-link-popover h4 {
       margin: 0 0 10px;
@@ -947,39 +949,192 @@
       box-shadow: 0 3px 12px var(--accent-soft);
     }
     .editor-link-btn.primary:hover { color: #fff; }
+    .editor-help-popover {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: min(520px, calc(100% - 36px));
+      max-height: min(76vh, 620px);
+      overflow-y: auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow-lg);
+      padding: 16px;
+      z-index: 6;
+    }
+    .editor-help-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .editor-help-head h4 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--fg);
+    }
+    .editor-help-close {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+    }
+    .editor-help-close:hover { color: var(--fg); border-color: var(--fg); }
+    .editor-help-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 8px 12px;
+      align-items: center;
+      font-size: 13px;
+    }
+    .editor-help-key {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--fg);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 4px 8px;
+      white-space: nowrap;
+    }
     .editor-body {
       flex: 1;
-      display: grid;
-      grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-      gap: 0;
+      display: flex;
+      align-items: stretch;
       padding: 20px 24px;
-      min-height: 200px;
+      min-height: 0;
       overflow: hidden;
+    }
+    .editor-pane {
+      position: relative;
+      min-height: 0;
+      height: 100%;
+    }
+    .editor-pane-edit {
+      width: 58%;
+      min-width: 240px;
+      padding-right: 18px;
+      background: linear-gradient(180deg, color-mix(in oklch, var(--accent-soft) 22%, transparent), transparent 90px);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .editor-pane-preview {
+      flex: 1;
+      min-width: 220px;
+      border-left: 1px solid var(--border);
+      padding-left: 18px;
+      background: linear-gradient(180deg, color-mix(in oklch, var(--success) 10%, transparent), transparent 90px);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .editor-pane-label {
+      position: absolute;
+      left: 10px;
+      bottom: 8px;
+      font-size: 11px;
+      color: var(--fg);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      pointer-events: none;
+      font-weight: 700;
+      background: color-mix(in oklch, var(--surface) 88%, transparent);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 3px 9px;
+      box-shadow: var(--shadow-sm);
+    }
+    .editor-divider {
+      width: 12px;
+      flex: 0 0 12px;
+      margin: 0 2px;
+      border-radius: 8px;
+      cursor: col-resize;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      user-select: none;
+      touch-action: none;
+    }
+    .editor-divider::before {
+      content: '';
+      width: 2px;
+      height: 44px;
+      border-radius: 999px;
+      background: var(--border);
+      transition: background 0.15s;
+    }
+    .editor-divider:hover::before,
+    .editor-divider.dragging::before {
+      background: var(--accent);
     }
     .editor-textarea {
       width: 100%;
-      min-height: 100%;
+      flex: 1;
+      min-height: 0;
       height: 100%;
       border: none;
       outline: none;
-      resize: vertical;
+      resize: none;
       font-size: 15px;
       line-height: 1.7;
       color: var(--fg);
       background: transparent;
-      padding-right: 18px;
+      padding: 0 0 24px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: color-mix(in oklch, var(--accent) 65%, var(--muted)) transparent;
     }
     .editor-textarea::placeholder { color: var(--muted); }
     .editor-preview {
       width: 100%;
-      min-height: 100%;
+      flex: 1;
+      min-height: 0;
+      height: 100%;
       font-size: 15px;
       line-height: 1.7;
       color: var(--fg);
       overflow-wrap: anywhere;
       overflow-y: auto;
-      border-left: 1px solid var(--border);
-      padding-left: 18px;
+      padding: 0 0 24px;
+      scrollbar-width: thin;
+      scrollbar-color: color-mix(in oklch, var(--accent) 65%, var(--muted)) transparent;
+    }
+    .editor-textarea::-webkit-scrollbar,
+    .editor-preview::-webkit-scrollbar,
+    .editor-help-popover::-webkit-scrollbar {
+      width: 10px;
+    }
+    .editor-textarea::-webkit-scrollbar-track,
+    .editor-preview::-webkit-scrollbar-track,
+    .editor-help-popover::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .editor-textarea::-webkit-scrollbar-thumb,
+    .editor-preview::-webkit-scrollbar-thumb,
+    .editor-help-popover::-webkit-scrollbar-thumb {
+      background: color-mix(in oklch, var(--accent) 65%, var(--muted));
+      border-radius: 999px;
+      border: 2px solid transparent;
+      background-clip: content-box;
+    }
+    .editor-textarea::-webkit-scrollbar-thumb:hover,
+    .editor-preview::-webkit-scrollbar-thumb:hover,
+    .editor-help-popover::-webkit-scrollbar-thumb:hover {
+      background: color-mix(in oklch, var(--accent) 80%, var(--muted));
+      background-clip: content-box;
     }
     .editor-preview h4 { margin: 0 0 10px; font-size: 18px; font-weight: 700; }
     .editor-preview p { margin: 0 0 10px; }
@@ -1164,14 +1319,21 @@
       .editor-panel { max-height: 92vh; border-radius: var(--radius); margin: 0; }
       .editor-modal { padding: 8px; }
       .editor-body {
-        grid-template-columns: 1fr;
+        flex-direction: column;
         gap: 14px;
         overflow-y: auto;
       }
+      .editor-pane-edit,
+      .editor-pane-preview {
+        width: 100%;
+        min-width: 0;
+        padding: 0;
+      }
+      .editor-pane-edit,
+      .editor-pane-preview { background: none; }
+      .editor-divider { display: none; }
       .editor-preview {
-        border-left: none;
         border-top: 1px solid var(--border);
-        padding-left: 0;
         padding-top: 12px;
         min-height: 180px;
       }
@@ -1513,6 +1675,9 @@
         </button>
         <input class="editor-title-input" id="editorTitle" placeholder="Note title" />
         <div class="editor-actions">
+          <button class="editor-action-btn" id="editorHelpBtn" aria-label="Shortcut help" title="Shortcut help">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </button>
           <button class="editor-action-btn" id="editorStarBtn" aria-label="Toggle favorite">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
           </button>
@@ -1561,9 +1726,29 @@
           <button class="editor-link-btn primary" id="editorLinkApply">Insert</button>
         </div>
       </div>
+      <div class="editor-help-popover hidden" id="editorHelpPopover">
+        <div class="editor-help-head">
+          <h4>Markdown Shortcuts</h4>
+          <button class="editor-help-close" id="editorHelpClose" aria-label="Close shortcuts">&times;</button>
+        </div>
+        <div class="editor-help-grid">
+          <span class="editor-help-key">Ctrl/Cmd + B</span><span>Bold</span>
+          <span class="editor-help-key">Ctrl/Cmd + I</span><span>Italic</span>
+          <span class="editor-help-key">Ctrl/Cmd + U</span><span>Underline</span>
+          <span class="editor-help-key">Ctrl/Cmd + K</span><span>Insert hyperlink</span>
+          <span class="editor-help-key">Esc</span><span>Close dialog / close modal</span>
+        </div>
+      </div>
       <div class="editor-body">
-        <textarea class="editor-textarea" id="editorBody" placeholder="Start writing..."></textarea>
-        <div class="editor-preview" id="editorPreview"></div>
+        <div class="editor-pane editor-pane-edit" id="editorEditPane">
+          <textarea class="editor-textarea" id="editorBody" placeholder="Start writing..."></textarea>
+          <div class="editor-pane-label">Edit</div>
+        </div>
+        <div class="editor-divider" id="editorDivider" title="Drag to resize editor and preview"></div>
+        <div class="editor-pane editor-pane-preview" id="editorPreviewPane">
+          <div class="editor-preview" id="editorPreview"></div>
+          <div class="editor-pane-label">Preview</div>
+        </div>
       </div>
       <div class="editor-footer">
         <span id="editorTimestamp">Last saved just now</span>
@@ -1688,12 +1873,17 @@
       var editorBack = document.getElementById('editorBack');
       var editorTitle = document.getElementById('editorTitle');
       var editorBody = document.getElementById('editorBody');
+      var editorBodyPane = document.getElementById('editorEditPane');
+      var editorDivider = document.getElementById('editorDivider');
+      var editorHelpBtn = document.getElementById('editorHelpBtn');
       var editorStarBtn = document.getElementById('editorStarBtn');
       var editorTrashBtn = document.getElementById('editorTrashBtn');
       var editorSaved = document.getElementById('editorSaved');
       var editorTimestamp = document.getElementById('editorTimestamp');
       var editorPreview = document.getElementById('editorPreview');
       var editorLinkPopover = document.getElementById('editorLinkPopover');
+      var editorHelpPopover = document.getElementById('editorHelpPopover');
+      var editorHelpClose = document.getElementById('editorHelpClose');
       var editorLinkText = document.getElementById('editorLinkText');
       var editorLinkUrl = document.getElementById('editorLinkUrl');
       var editorLinkCancel = document.getElementById('editorLinkCancel');
@@ -1702,6 +1892,9 @@
       var themeBtn = document.getElementById('sideThemeToggle');
       var linkRangeStart = 0;
       var linkRangeEnd = 0;
+      var editorSplitPercent = 58;
+      var dividerDragging = false;
+      var syncingEditorScroll = false;
 
       var todoView = document.getElementById('todoView');
       var todoList = document.getElementById('todoList');
@@ -1838,6 +2031,101 @@
           return;
         }
         editorPreview.innerHTML = renderMarkdown(raw);
+      }
+
+      function applyEditorSplit(percent) {
+        var clamped = Math.max(25, Math.min(75, percent));
+        editorSplitPercent = clamped;
+        editorBodyPane.style.width = clamped + '%';
+      }
+
+      function handleEditorBodyEnter(e) {
+        if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) {
+          return;
+        }
+        if (editorBody.selectionStart !== editorBody.selectionEnd) {
+          return;
+        }
+
+        var value = editorBody.value;
+        var cursor = editorBody.selectionStart;
+        var lineStart = value.lastIndexOf('\n', Math.max(0, cursor - 1)) + 1;
+        var lineEnd = value.indexOf('\n', cursor);
+        if (lineEnd === -1) {
+          lineEnd = value.length;
+        }
+
+        var line = value.slice(lineStart, lineEnd);
+        var bulletMatch = line.match(/^(\s*)([-*])\s(.*)$/);
+        var numberMatch = line.match(/^(\s*)(\d+)\.\s(.*)$/);
+        var insertText = '';
+        var before;
+        var after;
+        var nextCursor;
+
+        if (bulletMatch) {
+          e.preventDefault();
+          if (bulletMatch[3].trim() === '') {
+            before = value.slice(0, lineStart) + bulletMatch[1];
+            after = value.slice(lineEnd);
+            editorBody.value = before + after;
+            nextCursor = lineStart + bulletMatch[1].length;
+            editorBody.setSelectionRange(nextCursor, nextCursor);
+            queueEditorSave();
+            return;
+          }
+          insertText = '\n' + bulletMatch[1] + bulletMatch[2] + ' ';
+        } else if (numberMatch) {
+          e.preventDefault();
+          if (numberMatch[3].trim() === '') {
+            before = value.slice(0, lineStart) + numberMatch[1];
+            after = value.slice(lineEnd);
+            editorBody.value = before + after;
+            nextCursor = lineStart + numberMatch[1].length;
+            editorBody.setSelectionRange(nextCursor, nextCursor);
+            queueEditorSave();
+            return;
+          }
+          insertText = '\n' + numberMatch[1] + String(parseInt(numberMatch[2], 10) + 1) + '. ';
+        }
+
+        if (!insertText) {
+          return;
+        }
+
+        before = value.slice(0, cursor);
+        after = value.slice(cursor);
+        editorBody.value = before + insertText + after;
+        nextCursor = cursor + insertText.length;
+        editorBody.setSelectionRange(nextCursor, nextCursor);
+        queueEditorSave();
+      }
+
+      function startEditorDividerDrag(e) {
+        if (window.innerWidth <= 820) {
+          return;
+        }
+        dividerDragging = true;
+        editorDivider.classList.add('dragging');
+        e.preventDefault();
+      }
+
+      function moveEditorDivider(e) {
+        if (!dividerDragging) {
+          return;
+        }
+        var editorBodyRect = document.querySelector('.editor-body').getBoundingClientRect();
+        var pointerX = e.clientX;
+        var percent = ((pointerX - editorBodyRect.left) / editorBodyRect.width) * 100;
+        applyEditorSplit(percent);
+      }
+
+      function stopEditorDividerDrag() {
+        if (!dividerDragging) {
+          return;
+        }
+        dividerDragging = false;
+        editorDivider.classList.remove('dragging');
       }
 
       function themeInit() {
@@ -2051,6 +2339,8 @@
         editorTitle.value = note.title;
         editorBody.value = note.content;
         renderEditorPreview();
+        editorBody.scrollTop = 0;
+        editorPreview.scrollTop = 0;
         editingNoteFavorited = !!note.favorited;
         editorStarBtn.classList.toggle('favorited', editingNoteFavorited);
         editorStarBtn.querySelector('svg').setAttribute('fill', editingNoteFavorited ? 'currentColor' : 'none');
@@ -2069,7 +2359,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             title: editorTitle.value.trim() || 'Untitled',
-            content: editorBody.value.trim() || 'No content',
+            content: editorBody.value,
             category: note.category || 'Personal',
             tags: note.tags || [],
             favorited: !!editingNoteFavorited
@@ -2096,6 +2386,7 @@
         var closePromise = skipSave ? Promise.resolve() : saveCurrentNote().catch(function () { return null; });
         closePromise.finally(function () {
           editorLinkPopover.classList.add('hidden');
+          editorHelpPopover.classList.add('hidden');
           editorOverlay.classList.remove('open');
           editorModal.classList.remove('open');
           document.body.style.overflow = '';
@@ -2110,6 +2401,7 @@
         clearTimeout(saveTimer);
         saveTimer = setTimeout(saveCurrentNote, 700);
         renderEditorPreview();
+        syncScroll(editorBody, editorPreview);
       }
 
       function replaceEditorRange(start, end, replacement, nextSelectionStart, nextSelectionEnd) {
@@ -2164,6 +2456,64 @@
 
         replaceEditorRange(linkRangeStart, linkRangeEnd, replacement, selectStart, selectEnd);
         closeLinkDialog(false);
+      }
+
+      function openHelpDialog() {
+        editorHelpPopover.classList.remove('hidden');
+      }
+
+      function closeHelpDialog() {
+        editorHelpPopover.classList.add('hidden');
+        editorBody.focus();
+      }
+
+      function syncScroll(sourceEl, targetEl) {
+        if (syncingEditorScroll) {
+          return;
+        }
+        var sourceMax = sourceEl.scrollHeight - sourceEl.clientHeight;
+        var ratio = sourceMax > 0 ? sourceEl.scrollTop / sourceMax : 0;
+        var targetMax = targetEl.scrollHeight - targetEl.clientHeight;
+        syncingEditorScroll = true;
+        targetEl.scrollTop = ratio * Math.max(0, targetMax);
+        syncingEditorScroll = false;
+      }
+
+      function handleEditorShortcuts(e) {
+        if (!editorModal.classList.contains('open')) {
+          return;
+        }
+        if (editorHelpPopover && !editorHelpPopover.classList.contains('hidden')) {
+          return;
+        }
+        if (editorLinkPopover && !editorLinkPopover.classList.contains('hidden')) {
+          return;
+        }
+        var mod = e.ctrlKey || e.metaKey;
+        if (!mod) {
+          return;
+        }
+        var key = String(e.key || '').toLowerCase();
+        if (key === 'b') {
+          e.preventDefault();
+          applyToolbarCommand('bold');
+          return;
+        }
+        if (key === 'i') {
+          e.preventDefault();
+          applyToolbarCommand('italic');
+          return;
+        }
+        if (key === 'u') {
+          e.preventDefault();
+          applyToolbarCommand('underline');
+          return;
+        }
+        if (key === 'k') {
+          e.preventDefault();
+          applyToolbarCommand('link');
+          return;
+        }
       }
 
       function applyListOrHeading(cmd) {
@@ -2271,7 +2621,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             title: 'Untitled',
-            content: 'Start writing...',
+            content: '',
             category: 'Personal',
             tags: ['new'],
             favorited: false
@@ -2544,6 +2894,7 @@
       }
 
       function setupEvents() {
+        applyEditorSplit(editorSplitPercent);
         themeBtn.addEventListener('click', toggleTheme);
         document.getElementById('logoutBtn').addEventListener('click', function () {
           window.NotelifyAuth.logout().finally(function () {
@@ -2596,6 +2947,11 @@
           if (e.key !== 'Escape') {
             return;
           }
+          if (!editorHelpPopover.classList.contains('hidden')) {
+            e.preventDefault();
+            closeHelpDialog();
+            return;
+          }
           if (!editorLinkPopover.classList.contains('hidden')) {
             e.preventDefault();
             closeLinkDialog(true);
@@ -2625,9 +2981,18 @@
           clearTimeout(saveTimer);
           saveTimer = setTimeout(saveCurrentNote, 700);
         });
+        editorHelpBtn.addEventListener('click', openHelpDialog);
+        editorHelpClose.addEventListener('click', closeHelpDialog);
+        editorBody.addEventListener('keydown', handleEditorBodyEnter);
         editorBody.addEventListener('input', function () {
           queueEditorSave();
         });
+        editorBody.addEventListener('scroll', function () { syncScroll(editorBody, editorPreview); });
+        editorPreview.addEventListener('scroll', function () { syncScroll(editorPreview, editorBody); });
+        document.addEventListener('keydown', handleEditorShortcuts);
+        editorDivider.addEventListener('mousedown', startEditorDividerDrag);
+        document.addEventListener('mousemove', moveEditorDivider);
+        document.addEventListener('mouseup', stopEditorDividerDrag);
         editorLinkCancel.addEventListener('click', function () { closeLinkDialog(true); });
         editorLinkApply.addEventListener('click', applyLinkFromDialog);
         editorLinkUrl.addEventListener('keydown', function (e) {

@@ -2650,6 +2650,38 @@
               return;
             }
           }
+
+          var anchorNode = selection.anchorNode;
+          var anchorOffset = selection.anchorOffset;
+          var container = anchorNode && (anchorNode.nodeType === Node.ELEMENT_NODE ? anchorNode : anchorNode.parentElement);
+          var inEditableTextBlock = container && editorVisual.contains(container) && !!container.closest('p,div,li');
+          if (inEditableTextBlock) {
+            var removedBreak = false;
+            if (anchorNode.nodeType === Node.TEXT_NODE && anchorOffset === 0) {
+              var prevSibling = anchorNode.previousSibling;
+              if (prevSibling && prevSibling.nodeType === Node.ELEMENT_NODE && prevSibling.tagName === 'BR') {
+                e.preventDefault();
+                prevSibling.remove();
+                placeCaretAt(anchorNode, 0);
+                removedBreak = true;
+              }
+            } else if (anchorNode.nodeType === Node.ELEMENT_NODE && anchorOffset > 0) {
+              var prevChild = anchorNode.childNodes[anchorOffset - 1];
+              if (prevChild && prevChild.nodeType === Node.ELEMENT_NODE && prevChild.tagName === 'BR') {
+                e.preventDefault();
+                prevChild.remove();
+                placeCaretAt(anchorNode, Math.max(0, anchorOffset - 1));
+                removedBreak = true;
+              }
+            }
+
+            if (removedBreak) {
+              syncMarkdownFromVisual();
+              queueEditorSave();
+              updateToolbarIndicators();
+              return;
+            }
+          }
         }
 
         if (e.key === 'Enter' && selection.isCollapsed && inCell) {

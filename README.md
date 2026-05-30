@@ -210,6 +210,64 @@ Open app:
 - http://localhost:8080/
 - Dashboard (after login): http://localhost:8080/dashboard
 
+## Run With Docker
+
+Build image:
+
+```powershell
+docker build -t notelify-demo:latest .
+```
+
+Run container:
+
+```powershell
+docker run --rm -p 8080:8080 --env-file .env notelify-demo:latest
+```
+
+Open app:
+
+- http://localhost:8080/
+
+## Deploy On Render (Docker)
+
+This repository includes a production `Dockerfile` that Render can build directly.
+
+1. Push this repo to GitHub.
+2. In Render, click `New` -> `Web Service`.
+3. Connect your GitHub repository.
+4. Choose `Docker` as the runtime.
+5. Render will detect and build from `Dockerfile`.
+6. Add required environment variables in Render.
+7. Deploy.
+
+### Required Render Environment Variables
+
+Set these in Render `Environment`:
+
+- `SPRING_APPLICATION_NAME`
+- `SPRING_MAIL_HOST`
+- `SPRING_MAIL_PORT`
+- `SPRING_MAIL_USERNAME`
+- `SPRING_MAIL_PASSWORD`
+- `SPRING_MAIL_SMTP_AUTH`
+- `SPRING_MAIL_SMTP_STARTTLS_ENABLE`
+- `SPRING_MAIL_SMTP_CONNECTION_TIMEOUT`
+- `SPRING_MAIL_SMTP_TIMEOUT`
+- `SPRING_MAIL_SMTP_WRITE_TIMEOUT`
+- `APP_MAIL_FROM`
+- `APP_OTP_TTL_MINUTES`
+- `APP_JWT_SECRET`
+- `APP_JWT_ACCESS_TOKEN_MINUTES`
+- `APP_JWT_REFRESH_TOKEN_DAYS`
+
+Render automatically provides `PORT`; the Docker image starts Spring Boot on that port.
+
+### Notes For Render
+
+- The app currently uses in-memory user/auth state, so sessions are reset on restart/redeploy.
+- H2 data is not configured for durable production persistence.
+- For production-grade persistence, move to a managed database and persistent auth/user storage.
+
 ## Current Limitations
 
 - Users and refresh tokens are in-memory only.

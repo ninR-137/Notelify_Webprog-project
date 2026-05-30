@@ -28,6 +28,8 @@ public class SecurityConfig {
 			.authorizeHttpRequests(authorize -> authorize
 				.requestMatchers(
 					"/",
+						"/favicon.ico",
+						"/error",
 					"/api/auth/**",
 					"/api/public/**",
 					"/notes-app2.png",

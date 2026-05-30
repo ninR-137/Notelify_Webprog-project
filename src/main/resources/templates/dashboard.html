@@ -1721,6 +1721,9 @@
         return authJson('/api/notes?view=' + view + '&search=' + query + '&sort=' + sort)
           .then(function (data) {
             notes = Array.isArray(data) ? data : [];
+            if (currentNav === 'todos') {
+              return;
+            }
             renderNotes();
           })
           .catch(function (err) {
@@ -1733,6 +1736,9 @@
       }
 
       function renderNotes() {
+        if (currentNav === 'todos') {
+          return;
+        }
         var list = notes.slice();
         if (list.length === 0) {
           notesArea.className = 'notes-area empty-state';

@@ -947,6 +947,7 @@
       cursor: pointer;
     }
     .editor-action-btn:hover { background: var(--accent-soft); color: var(--accent); }
+    .editor-action-btn.active { background: var(--accent-soft); color: var(--accent); }
     .editor-action-btn.favorited svg { fill: var(--star); stroke: var(--star); }
     .editor-action-btn svg { width: 18px; height: 18px; }
     .editor-saved { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
@@ -1133,6 +1134,15 @@
       flex-direction: column;
       overflow: hidden;
     }
+    .editor-divider,
+    .editor-pane-preview {
+      display: none;
+    }
+    .editor-pane-edit {
+      width: 100%;
+      min-width: 0;
+      padding-right: 0;
+    }
     .editor-pane-label {
       position: absolute;
       left: 10px;
@@ -1189,8 +1199,38 @@
       overflow-y: auto;
       scrollbar-width: thin;
       scrollbar-color: color-mix(in oklch, var(--accent) 65%, var(--muted)) transparent;
+      position: relative;
+      z-index: 2;
     }
     .editor-textarea::placeholder { color: var(--muted); }
+    .editor-visual {
+      display: none;
+      border: none;
+      outline: none;
+      background: transparent;
+      padding: 0 0 24px;
+    }
+    .editor-modal.live-preview-mode .editor-pane-preview,
+    .editor-modal.live-preview-mode .editor-divider {
+      display: none;
+    }
+    .editor-modal.live-preview-mode .editor-pane-edit {
+      width: 100%;
+      min-width: 0;
+      padding-right: 0;
+    }
+    .editor-modal.live-preview-mode .editor-visual {
+      display: block;
+    }
+    .editor-modal.live-preview-mode .editor-textarea {
+      display: none;
+    }
+    .editor-modal.live-preview-mode .editor-visual {
+      caret-color: var(--fg);
+    }
+    #editorLiveToggleBtn {
+      display: none;
+    }
     .editor-preview {
       width: 100%;
       flex: 1;
@@ -1253,6 +1293,34 @@
       text-align: left;
     }
     .editor-preview th { background: var(--bg); }
+    .editor-table-wrap {
+      position: relative;
+      margin: 8px 0 12px;
+      padding-top: 18px;
+    }
+    .editor-table-wrap table { margin: 0; }
+    .editor-table-delete {
+      position: absolute;
+      top: -2px;
+      right: 0;
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0;
+    }
+    .editor-table-delete:hover {
+      color: #fff;
+      background: var(--danger);
+      border-color: var(--danger);
+    }
     .editor-preview-empty { color: var(--muted); font-style: italic; }
     .editor-footer {
       display: flex;
@@ -1828,6 +1896,9 @@
           <button class="editor-action-btn" id="editorHelpBtn" aria-label="Shortcut help" title="Shortcut help">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           </button>
+          <button class="editor-action-btn" id="editorLiveToggleBtn" aria-label="Toggle visual mode" aria-pressed="false" title="Switch to visual mode">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 0 1 4 4L7 21l-4 1 1-4L17 3z"/><line x1="15" y1="5" x2="19" y2="9"/></svg>
+          </button>
           <button class="editor-action-btn" id="editorExportBtn" aria-label="Export note as PDF" title="Export as PDF">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
           </button>
@@ -1895,11 +1966,14 @@
           <span class="editor-help-key">Ctrl/Cmd + I</span><span>Italic</span>
           <span class="editor-help-key">Ctrl/Cmd + U</span><span>Underline</span>
           <span class="editor-help-key">Ctrl/Cmd + K</span><span>Insert hyperlink</span>
+          <span class="editor-help-key">Ctrl/Cmd + .</span><span>Bullet list</span>
+          <span class="editor-help-key">Ctrl/Cmd + &gt;</span><span>Numbered list</span>
           <span class="editor-help-key">Esc</span><span>Close dialog / close modal</span>
         </div>
       </div>
       <div class="editor-body">
         <div class="editor-pane editor-pane-edit" id="editorEditPane">
+          <div class="editor-preview editor-visual" id="editorVisual" contenteditable="true" spellcheck="true" aria-label="Visual editor"></div>
           <textarea class="editor-textarea" id="editorBody" placeholder="Start writing..."></textarea>
           <div class="editor-pane-label">Edit</div>
         </div>
@@ -2037,14 +2111,17 @@
       var editorTitle = document.getElementById('editorTitle');
       var editorBody = document.getElementById('editorBody');
       var editorBodyPane = document.getElementById('editorEditPane');
+      var editorPreviewPane = document.getElementById('editorPreviewPane');
       var editorDivider = document.getElementById('editorDivider');
       var editorHelpBtn = document.getElementById('editorHelpBtn');
+      var editorLiveToggleBtn = document.getElementById('editorLiveToggleBtn');
       var editorExportBtn = document.getElementById('editorExportBtn');
       var editorStarBtn = document.getElementById('editorStarBtn');
       var editorTrashBtn = document.getElementById('editorTrashBtn');
       var editorSaved = document.getElementById('editorSaved');
       var editorTimestamp = document.getElementById('editorTimestamp');
       var editorPreview = document.getElementById('editorPreview');
+      var editorVisual = document.getElementById('editorVisual');
       var editorLinkPopover = document.getElementById('editorLinkPopover');
       var editorHelpPopover = document.getElementById('editorHelpPopover');
       var editorHelpClose = document.getElementById('editorHelpClose');
@@ -2052,6 +2129,7 @@
       var editorLinkUrl = document.getElementById('editorLinkUrl');
       var editorLinkCancel = document.getElementById('editorLinkCancel');
       var editorLinkApply = document.getElementById('editorLinkApply');
+      var toolbarButtons = Array.from(document.querySelectorAll('.toolbar-btn'));
       var toast = document.getElementById('toast');
       var themeBtn = document.getElementById('sideThemeToggle');
       var linkRangeStart = 0;
@@ -2059,6 +2137,8 @@
       var editorSplitPercent = 58;
       var dividerDragging = false;
       var syncingEditorScroll = false;
+      var isLivePreviewMode = true;
+      var visualLinkRange = null;
 
       var todoView = document.getElementById('todoView');
       var todoList = document.getElementById('todoList');
@@ -2244,22 +2324,415 @@
         return div.textContent || '';
       }
 
-      function renderEditorPreview() {
-        var raw = editorBody.value || '';
-        if (!raw.trim()) {
-          editorPreview.innerHTML = '<p class="editor-preview-empty">Nothing to preview yet.</p>';
+      function inlineToMarkdown(node) {
+        if (!node) {
+          return '';
+        }
+        if (node.nodeType === Node.TEXT_NODE) {
+          return node.nodeValue || '';
+        }
+        if (node.nodeType !== Node.ELEMENT_NODE) {
+          return '';
+        }
+
+        var tag = node.tagName.toLowerCase();
+        var text = Array.from(node.childNodes).map(inlineToMarkdown).join('');
+        if (tag === 'strong' || tag === 'b') {
+          return '**' + text + '**';
+        }
+        if (tag === 'em' || tag === 'i') {
+          return '*' + text + '*';
+        }
+        if (tag === 'u') {
+          return '<u>' + text + '</u>';
+        }
+        if (tag === 'a') {
+          var href = node.getAttribute('href') || '';
+          return '[' + text + '](' + href + ')';
+        }
+        if (tag === 'br') {
+          return '\n';
+        }
+        return text;
+      }
+
+      function tableElementToMarkdownLines(tableEl, lines) {
+        if (!tableEl) {
           return;
         }
-        editorPreview.innerHTML = renderMarkdown(raw);
+        var rows = Array.from(tableEl.querySelectorAll('tr')).map(function (tr) {
+          return Array.from(tr.children).map(function (cell) {
+            return inlineToMarkdown(cell).trim();
+          });
+        });
+        if (rows.length > 0) {
+          lines.push('| ' + rows[0].join(' | ') + ' |');
+          lines.push('| ' + rows[0].map(function () { return '---'; }).join(' | ') + ' |');
+          for (var i = 1; i < rows.length; i++) {
+            lines.push('| ' + rows[i].join(' | ') + ' |');
+          }
+        }
+      }
+
+      function visualHtmlToMarkdown(html) {
+        var root = document.createElement('div');
+        root.innerHTML = html || '';
+        var lines = [];
+
+        Array.from(root.childNodes).forEach(function (node) {
+          if (node.nodeType === Node.TEXT_NODE) {
+            var plain = (node.nodeValue || '').trim();
+            if (plain) {
+              lines.push(plain);
+            }
+            return;
+          }
+          if (node.nodeType !== Node.ELEMENT_NODE) {
+            return;
+          }
+
+          var tag = node.tagName.toLowerCase();
+          if (tag === 'h4') {
+            lines.push('# ' + inlineToMarkdown(node).trim());
+            return;
+          }
+          if (tag === 'ul' || tag === 'ol') {
+            Array.from(node.children).forEach(function (li, idx) {
+              var marker = tag === 'ol' ? String(idx + 1) + '. ' : '- ';
+              lines.push(marker + inlineToMarkdown(li).trim());
+            });
+            return;
+          }
+          if (tag === 'hr') {
+            lines.push('---');
+            return;
+          }
+          if (tag === 'table') {
+            tableElementToMarkdownLines(node, lines);
+            return;
+          }
+
+          if (node.classList && node.classList.contains('editor-table-wrap')) {
+            tableElementToMarkdownLines(node.querySelector('table'), lines);
+            return;
+          }
+
+          var content = inlineToMarkdown(node).trim();
+          if (content) {
+            lines.push(content);
+          } else if (tag === 'p' || tag === 'div') {
+            lines.push('');
+          }
+        });
+
+        return lines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd();
+      }
+
+      function syncMarkdownFromVisual() {
+        editorBody.value = visualHtmlToMarkdown(editorVisual.innerHTML);
+      }
+
+      function ensureVisualTableControls() {
+        Array.from(editorVisual.querySelectorAll('table')).forEach(function (table) {
+          if (table.closest('.editor-table-wrap')) {
+            return;
+          }
+          var wrapper = document.createElement('div');
+          wrapper.className = 'editor-table-wrap';
+          wrapper.setAttribute('contenteditable', 'false');
+
+          var removeBtn = document.createElement('button');
+          removeBtn.className = 'editor-table-delete';
+          removeBtn.setAttribute('type', 'button');
+          removeBtn.setAttribute('data-table-delete', 'true');
+          removeBtn.setAttribute('aria-label', 'Delete table');
+          removeBtn.textContent = 'x';
+
+          table.parentNode.insertBefore(wrapper, table);
+          wrapper.appendChild(removeBtn);
+          wrapper.appendChild(table);
+          wrapper.removeAttribute('contenteditable');
+          table.querySelectorAll('th,td').forEach(function (cell) {
+            cell.setAttribute('contenteditable', 'true');
+          });
+        });
+      }
+
+      function placeCaretAt(node, offset) {
+        var range = document.createRange();
+        var selection = window.getSelection();
+        range.setStart(node, offset);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+
+      function placeCaretAtEnd(node) {
+        var range = document.createRange();
+        var selection = window.getSelection();
+        range.selectNodeContents(node);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+
+      function getVisualCurrentBlock() {
+        var selection = window.getSelection();
+        if (!selection || !selection.anchorNode) {
+          return null;
+        }
+        var anchor = selection.anchorNode.nodeType === Node.ELEMENT_NODE
+          ? selection.anchorNode
+          : selection.anchorNode.parentElement;
+        if (!anchor) {
+          return null;
+        }
+        return anchor.closest('p, div, li');
+      }
+
+      function getVisualSelectionElement() {
+        var selection = window.getSelection();
+        if (!selection || !selection.anchorNode) {
+          return null;
+        }
+        var node = selection.anchorNode.nodeType === Node.ELEMENT_NODE
+          ? selection.anchorNode
+          : selection.anchorNode.parentElement;
+        if (!node || !editorVisual.contains(node)) {
+          return null;
+        }
+        return node;
+      }
+
+      function setToolbarButtonActiveState(activeMap) {
+        toolbarButtons.forEach(function (btn) {
+          var cmd = btn.dataset.cmd;
+          var isActive = !!activeMap[cmd];
+          btn.classList.toggle('active', isActive);
+          btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+      }
+
+      function updateToolbarIndicators() {
+        if (!editorModal.classList.contains('open') || !isLivePreviewMode) {
+          setToolbarButtonActiveState({});
+          return;
+        }
+
+        var el = getVisualSelectionElement();
+        if (!el) {
+          setToolbarButtonActiveState({});
+          return;
+        }
+
+        var active = {
+          bold: !!el.closest('strong,b'),
+          italic: !!el.closest('em,i'),
+          underline: !!el.closest('u'),
+          bullet: !!el.closest('ul'),
+          numbered: !!el.closest('ol'),
+          heading: !!el.closest('h4'),
+          link: !!el.closest('a'),
+          table: !!el.closest('table')
+        };
+        setToolbarButtonActiveState(active);
+      }
+
+      function autoTransformVisualMarkdownSyntax() {
+        return;
+      }
+
+      function handleVisualEditorKeydown(e) {
+        if (!isLivePreviewMode) {
+          return;
+        }
+
+        var selection = window.getSelection();
+        if (!selection) {
+          return;
+        }
+
+        var focusNode = selection.anchorNode;
+        var focusElement = focusNode && (focusNode.nodeType === Node.ELEMENT_NODE ? focusNode : focusNode.parentElement);
+        var inCell = focusElement && focusElement.closest('td,th');
+
+        if (e.key === 'Backspace' && selection.isCollapsed && inCell) {
+          var tableRow = inCell.closest('tr');
+          var tableSection = tableRow ? tableRow.parentElement : null;
+          var sectionRows = tableSection ? Array.from(tableSection.children) : [];
+          var isLastRowInSection = tableRow && sectionRows.length && sectionRows[sectionRows.length - 1] === tableRow;
+          if (tableRow && isLastRowInSection) {
+            var rowCells = Array.from(tableRow.children);
+            var isRowEmpty = rowCells.every(function (cell) {
+              return !(cell.textContent || '').replace(/\u00a0/g, ' ').trim();
+            });
+            if (isRowEmpty) {
+              e.preventDefault();
+              var previousRow = tableRow.previousElementSibling;
+              var table = tableRow.closest('table');
+              var tableWrap = tableRow.closest('.editor-table-wrap');
+              tableRow.remove();
+
+              if (previousRow && previousRow.children.length) {
+                placeCaretAtEnd(previousRow.children[previousRow.children.length - 1]);
+              } else {
+                var fallback = document.createElement('p');
+                fallback.appendChild(document.createElement('br'));
+                if (tableWrap) {
+                  tableWrap.after(fallback);
+                } else if (table) {
+                  table.after(fallback);
+                } else {
+                  editorVisual.appendChild(fallback);
+                }
+                placeCaretAt(fallback, 0);
+              }
+
+              syncMarkdownFromVisual();
+              queueEditorSave();
+              updateToolbarIndicators();
+              return;
+            }
+          }
+        }
+
+        if ((e.key === 'Backspace' || e.key === 'Delete') && selection.isCollapsed && !inCell) {
+          var block = getVisualCurrentBlock();
+          if (block) {
+            var atStart = selection.anchorOffset === 0;
+            var atEnd = selection.anchorNode && selection.anchorNode.nodeType === Node.TEXT_NODE
+              ? selection.anchorOffset === (selection.anchorNode.nodeValue || '').length
+              : false;
+            if (e.key === 'Backspace' && atStart) {
+              var prev = block.previousElementSibling;
+              if (prev && (prev.matches('.editor-table-wrap') || prev.matches('table'))) {
+                e.preventDefault();
+                return;
+              }
+            }
+            if (e.key === 'Delete' && atEnd) {
+              var next = block.nextElementSibling;
+              if (next && (next.matches('.editor-table-wrap') || next.matches('table'))) {
+                e.preventDefault();
+                return;
+              }
+            }
+          }
+        }
+
+        if (e.key === 'Backspace' && selection.isCollapsed) {
+          var currentBlock = getVisualCurrentBlock();
+          if (currentBlock && currentBlock.tagName && currentBlock.tagName.toLowerCase() === 'li') {
+            var liText = (currentBlock.textContent || '').replace(/\u00a0/g, ' ').trim();
+            if (!liText) {
+              e.preventDefault();
+              var list = currentBlock.parentElement;
+              if (list && (list.tagName.toLowerCase() === 'ul' || list.tagName.toLowerCase() === 'ol')) {
+                if (list.children.length === 1) {
+                  var p = document.createElement('p');
+                  p.appendChild(document.createElement('br'));
+                  list.replaceWith(p);
+                  placeCaretAt(p, 0);
+                } else {
+                  var previousItem = currentBlock.previousElementSibling;
+                  var nextItem = currentBlock.nextElementSibling;
+                  currentBlock.remove();
+                  if (previousItem) {
+                    placeCaretAt(previousItem, previousItem.childNodes.length);
+                  } else if (nextItem) {
+                    placeCaretAt(nextItem, 0);
+                  }
+                }
+                syncMarkdownFromVisual();
+                queueEditorSave();
+                updateToolbarIndicators();
+              }
+              return;
+            }
+          }
+        }
+
+        if (e.key === 'Enter' && selection.isCollapsed && inCell) {
+          var row = inCell.closest('tr');
+          var tableWrap = inCell.closest('.editor-table-wrap');
+          var table = tableWrap ? tableWrap.querySelector('table') : inCell.closest('table');
+          if (row && table) {
+            var section = row.parentElement;
+            var rows = Array.from(section.children);
+            var isLastRow = rows[rows.length - 1] === row;
+            var nodeText = selection.anchorNode && selection.anchorNode.nodeType === Node.TEXT_NODE
+              ? (selection.anchorNode.nodeValue || '')
+              : '';
+            var atEnd = selection.anchorNode && selection.anchorNode.nodeType === Node.TEXT_NODE
+              ? selection.anchorOffset === nodeText.length
+              : true;
+            if (isLastRow && atEnd) {
+              e.preventDefault();
+              var colCount = row.children.length || 1;
+              var newRow = document.createElement('tr');
+              for (var i = 0; i < colCount; i++) {
+                var cell = document.createElement('td');
+                cell.setAttribute('contenteditable', 'true');
+                cell.appendChild(document.createElement('br'));
+                newRow.appendChild(cell);
+              }
+              section.appendChild(newRow);
+              placeCaretAt(newRow.children[0], 0);
+              syncMarkdownFromVisual();
+              queueEditorSave();
+              return;
+            }
+          }
+        }
+      }
+
+      function renderEditorPreview(refreshVisual) {
+        var raw = editorBody.value || '';
+        var html = raw.trim()
+          ? renderMarkdown(raw)
+          : '<p class="editor-preview-empty">Nothing to preview yet.</p>';
+        editorPreview.innerHTML = html;
+        if (refreshVisual) {
+          editorVisual.innerHTML = raw.trim() ? html : '<p><br/></p>';
+          ensureVisualTableControls();
+          updateToolbarIndicators();
+        }
+      }
+
+      function setLivePreviewMode(enabled) {
+        isLivePreviewMode = true;
+        editorModal.classList.toggle('live-preview-mode', isLivePreviewMode);
+        editorLiveToggleBtn.classList.toggle('active', isLivePreviewMode);
+        editorLiveToggleBtn.setAttribute('aria-pressed', isLivePreviewMode ? 'true' : 'false');
+        editorLiveToggleBtn.title = isLivePreviewMode
+          ? 'Switch to split markdown mode'
+          : 'Switch to visual mode';
+        if (isLivePreviewMode) {
+          renderEditorPreview(true);
+        } else {
+          syncMarkdownFromVisual();
+          renderEditorPreview(false);
+        }
+        updateToolbarIndicators();
+        if (!isLivePreviewMode) {
+          applyEditorSplit(editorSplitPercent);
+        }
       }
 
       function applyEditorSplit(percent) {
+        if (isLivePreviewMode) {
+          editorBodyPane.style.width = '100%';
+          return;
+        }
         var clamped = Math.max(25, Math.min(75, percent));
         editorSplitPercent = clamped;
         editorBodyPane.style.width = clamped + '%';
       }
 
       function handleEditorBodyEnter(e) {
+        if (isLivePreviewMode) {
+          return;
+        }
         if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) {
           return;
         }
@@ -2587,9 +3060,11 @@
         editorLinkPopover.classList.add('hidden');
         editorTitle.value = note.title;
         editorBody.value = note.content;
-        renderEditorPreview();
+        renderEditorPreview(true);
+        updateToolbarIndicators();
         editorBody.scrollTop = 0;
         editorPreview.scrollTop = 0;
+        editorVisual.scrollTop = 0;
         editingNoteFavorited = !!note.favorited;
         editorStarBtn.classList.toggle('favorited', editingNoteFavorited);
         editorStarBtn.querySelector('svg').setAttribute('fill', editingNoteFavorited ? 'currentColor' : 'none');
@@ -2641,6 +3116,7 @@
           document.body.style.overflow = '';
           editingNoteId = null;
           editingNoteFavorited = false;
+          setToolbarButtonActiveState({});
           renderNotes();
         });
       }
@@ -2649,8 +3125,7 @@
         editorSaved.querySelector('span').textContent = 'Saving...';
         clearTimeout(saveTimer);
         saveTimer = setTimeout(saveCurrentNote, 700);
-        renderEditorPreview();
-        syncScroll(editorBody, editorPreview);
+        renderEditorPreview(false);
       }
 
       function replaceEditorRange(start, end, replacement, nextSelectionStart, nextSelectionEnd) {
@@ -2680,6 +3155,20 @@
       }
 
       function openLinkDialog() {
+        if (isLivePreviewMode) {
+          var selection = window.getSelection();
+          if (selection && selection.rangeCount) {
+            visualLinkRange = selection.getRangeAt(0).cloneRange();
+            editorLinkText.value = selection.toString();
+          } else {
+            visualLinkRange = null;
+            editorLinkText.value = '';
+          }
+          editorLinkUrl.value = '';
+          editorLinkPopover.classList.remove('hidden');
+          setTimeout(function () { editorLinkUrl.focus(); }, 0);
+          return;
+        }
         linkRangeStart = editorBody.selectionStart;
         linkRangeEnd = editorBody.selectionEnd;
         editorLinkText.value = editorBody.value.slice(linkRangeStart, linkRangeEnd);
@@ -2690,6 +3179,15 @@
 
       function closeLinkDialog(restoreSelection) {
         editorLinkPopover.classList.add('hidden');
+        if (isLivePreviewMode) {
+          if (restoreSelection && visualLinkRange) {
+            var selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(visualLinkRange);
+          }
+          editorVisual.focus();
+          return;
+        }
         if (restoreSelection) {
           editorBody.focus();
           editorBody.setSelectionRange(linkRangeStart, linkRangeEnd);
@@ -2704,6 +3202,21 @@
         }
         if (!/^(https?:\/\/|mailto:)/i.test(url)) {
           url = 'https://' + url;
+        }
+
+        if (isLivePreviewMode) {
+          var textValue = editorLinkText.value || url;
+          editorVisual.focus();
+          if (visualLinkRange) {
+            var selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(visualLinkRange);
+          }
+          document.execCommand('insertHTML', false, '<a href="' + escapeHtml(url) + '">' + escapeHtml(textValue) + '</a>');
+          syncMarkdownFromVisual();
+          queueEditorSave();
+          closeLinkDialog(false);
+          return;
         }
 
         var text = editorLinkText.value;
@@ -2752,7 +3265,7 @@
 
       function closeHelpDialog() {
         editorHelpPopover.classList.add('hidden');
-        editorBody.focus();
+        (isLivePreviewMode ? editorVisual : editorBody).focus();
       }
 
       function syncScroll(sourceEl, targetEl) {
@@ -2785,21 +3298,37 @@
         if (key === 'b') {
           e.preventDefault();
           applyToolbarCommand('bold');
+          requestAnimationFrame(updateToolbarIndicators);
           return;
         }
         if (key === 'i') {
           e.preventDefault();
           applyToolbarCommand('italic');
+          requestAnimationFrame(updateToolbarIndicators);
           return;
         }
         if (key === 'u') {
           e.preventDefault();
           applyToolbarCommand('underline');
+          requestAnimationFrame(updateToolbarIndicators);
           return;
         }
         if (key === 'k') {
           e.preventDefault();
           applyToolbarCommand('link');
+          requestAnimationFrame(updateToolbarIndicators);
+          return;
+        }
+        if (key === '>' || (key === '.' && e.shiftKey)) {
+          e.preventDefault();
+          applyToolbarCommand('numbered');
+          requestAnimationFrame(updateToolbarIndicators);
+          return;
+        }
+        if (key === '.' && !e.shiftKey) {
+          e.preventDefault();
+          applyToolbarCommand('bullet');
+          requestAnimationFrame(updateToolbarIndicators);
           return;
         }
       }
@@ -2833,6 +3362,72 @@
       function applyToolbarCommand(cmd) {
         if (!cmd) {
           return;
+        }
+        if (isLivePreviewMode) {
+          editorVisual.focus();
+          if (cmd === 'bold') {
+            document.execCommand('bold');
+            syncMarkdownFromVisual();
+            queueEditorSave();
+            updateToolbarIndicators();
+            return;
+          }
+          if (cmd === 'italic') {
+            document.execCommand('italic');
+            syncMarkdownFromVisual();
+            queueEditorSave();
+            updateToolbarIndicators();
+            return;
+          }
+          if (cmd === 'underline') {
+            document.execCommand('underline');
+            syncMarkdownFromVisual();
+            queueEditorSave();
+            updateToolbarIndicators();
+            return;
+          }
+          if (cmd === 'bullet') {
+            document.execCommand('insertUnorderedList');
+            syncMarkdownFromVisual();
+            queueEditorSave();
+            updateToolbarIndicators();
+            return;
+          }
+          if (cmd === 'numbered') {
+            document.execCommand('insertOrderedList');
+            syncMarkdownFromVisual();
+            queueEditorSave();
+            updateToolbarIndicators();
+            return;
+          }
+          if (cmd === 'heading') {
+            var currentEl = getVisualSelectionElement();
+            var inHeading = !!(currentEl && currentEl.closest('h4'));
+            document.execCommand('formatBlock', false, inHeading ? 'p' : 'h4');
+            syncMarkdownFromVisual();
+            queueEditorSave();
+            updateToolbarIndicators();
+            return;
+          }
+          if (cmd === 'hr') {
+            document.execCommand('insertHorizontalRule');
+            syncMarkdownFromVisual();
+            queueEditorSave();
+            updateToolbarIndicators();
+            return;
+          }
+          if (cmd === 'table') {
+            document.execCommand('insertHTML', false, '<table><thead><tr><th>Column 1</th><th>Column 2</th></tr></thead><tbody><tr><td>Value 1</td><td>Value 2</td></tr></tbody></table><p><br/></p>');
+            ensureVisualTableControls();
+            syncMarkdownFromVisual();
+            queueEditorSave();
+            updateToolbarIndicators();
+            return;
+          }
+          if (cmd === 'link') {
+            openLinkDialog();
+            return;
+          }
         }
         if (cmd === 'bold') {
           wrapSelection('**', '**');
@@ -3191,6 +3786,7 @@
 
       function setupEvents() {
         applyEditorSplit(editorSplitPercent);
+        setLivePreviewMode(isLivePreviewMode);
         themeBtn.addEventListener('click', toggleTheme);
         themeBtn.addEventListener('click', renderSettingsView);
         document.getElementById('logoutBtn').addEventListener('click', function () {
@@ -3294,15 +3890,73 @@
           saveTimer = setTimeout(saveCurrentNote, 700);
         });
         editorHelpBtn.addEventListener('click', openHelpDialog);
+        editorLiveToggleBtn.addEventListener('click', function () {
+          setLivePreviewMode(!isLivePreviewMode);
+        });
         editorExportBtn.addEventListener('click', exportCurrentNotePdf);
         editorHelpClose.addEventListener('click', closeHelpDialog);
         editorBody.addEventListener('keydown', handleEditorBodyEnter);
         editorBody.addEventListener('input', function () {
           queueEditorSave();
         });
-        editorBody.addEventListener('scroll', function () { syncScroll(editorBody, editorPreview); });
-        editorPreview.addEventListener('scroll', function () { syncScroll(editorPreview, editorBody); });
+        editorVisual.addEventListener('input', function () {
+          syncMarkdownFromVisual();
+          queueEditorSave();
+          updateToolbarIndicators();
+        });
+        editorVisual.addEventListener('click', function (e) {
+          var deleteBtn = e.target.closest('[data-table-delete]');
+          if (!deleteBtn) {
+            return;
+          }
+          e.preventDefault();
+          var wrap = deleteBtn.closest('.editor-table-wrap');
+          if (!wrap) {
+            return;
+          }
+          var next = document.createElement('p');
+          next.appendChild(document.createElement('br'));
+          wrap.replaceWith(next);
+          placeCaretAt(next, 0);
+          syncMarkdownFromVisual();
+          queueEditorSave();
+          updateToolbarIndicators();
+        });
+        editorVisual.addEventListener('keydown', handleVisualEditorKeydown);
+        editorVisual.addEventListener('keyup', updateToolbarIndicators);
+        editorVisual.addEventListener('mouseup', updateToolbarIndicators);
+        editorVisual.addEventListener('focus', updateToolbarIndicators);
+        editorBody.addEventListener('scroll', function () {
+          if (!isLivePreviewMode) {
+            syncScroll(editorBody, editorPreview);
+          }
+        });
+        editorVisual.addEventListener('scroll', function () {
+          if (!isLivePreviewMode) {
+            return;
+          }
+        });
+        editorPreview.addEventListener('scroll', function () {
+          if (!isLivePreviewMode) {
+            syncScroll(editorPreview, editorBody);
+          }
+        });
         document.addEventListener('keydown', handleEditorShortcuts);
+        document.addEventListener('selectionchange', function () {
+          if (!editorModal.classList.contains('open') || !isLivePreviewMode) {
+            return;
+          }
+          var selection = window.getSelection();
+          if (!selection || !selection.anchorNode) {
+            return;
+          }
+          var node = selection.anchorNode.nodeType === Node.ELEMENT_NODE
+            ? selection.anchorNode
+            : selection.anchorNode.parentElement;
+          if (node && editorVisual.contains(node)) {
+            updateToolbarIndicators();
+          }
+        });
         editorDivider.addEventListener('mousedown', startEditorDividerDrag);
         document.addEventListener('mousemove', moveEditorDivider);
         document.addEventListener('mouseup', stopEditorDividerDrag);

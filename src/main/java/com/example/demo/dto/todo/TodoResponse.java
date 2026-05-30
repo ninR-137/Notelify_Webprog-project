@@ -10,7 +10,7 @@ public record TodoResponse(
 	LocalDate dueDate,
 	String priority,
 	boolean completed,
-	Integer reminderMinutes,
+	Integer reminderDays,
 	LocalDateTime createdAt,
 	LocalDateTime updatedAt
 ) {

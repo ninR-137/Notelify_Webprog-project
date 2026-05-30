@@ -13,6 +13,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 
 @Entity
@@ -26,7 +27,8 @@ public class NoteEntity {
 	@Column(nullable = false, length = 160)
 	private String title;
 
-	@Column(nullable = false, length = 6000)
+	@Lob
+	@Column(nullable = false)
 	private String content;
 
 	@Column(nullable = false, length = 80)

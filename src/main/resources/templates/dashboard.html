@@ -1482,10 +1482,11 @@
         <div class="todo-select-wrap">
           <select id="todoFormReminder">
             <option value="0">None</option>
-            <option value="15">15 min before</option>
-            <option value="30">30 min before</option>
-            <option value="60">1 hour before</option>
-            <option value="1440">1 day before</option>
+            <option value="1">1 day before</option>
+            <option value="2">2 days before</option>
+            <option value="3">3 days before</option>
+            <option value="7">7 days before</option>
+            <option value="14">14 days before</option>
           </select>
           <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
@@ -2018,7 +2019,7 @@
           todoFormDesc.value = todo.description || '';
           todoFormDue.value = todo.dueDate || '';
           todoFormPriority.value = todo.priority || 'medium';
-          todoFormReminder.value = String(todo.reminderMinutes || 0);
+          todoFormReminder.value = String(todo.reminderDays || 0);
           todoFormDelete.classList.remove('hidden');
         } else {
           todoModalTitle.textContent = 'Add Task';
@@ -2051,7 +2052,7 @@
           description: todoFormDesc.value.trim(),
           dueDate: todoFormDue.value || null,
           priority: todoFormPriority.value,
-          reminderMinutes: parseInt(todoFormReminder.value, 10) || 0
+          reminderDays: parseInt(todoFormReminder.value, 10) || 0
         };
         var req = editingTodoId == null
           ? authJson('/api/todos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })

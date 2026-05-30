@@ -66,7 +66,7 @@ public class TodoService {
 		todo.setDescription(request == null ? null : nullIfBlank(request.description()));
 		todo.setPriority(normalizePriority(request == null ? null : request.priority()));
 		todo.setDueDate(parseDate(request == null ? null : request.dueDate()));
-		todo.setReminderMinutes(request == null ? null : request.reminderMinutes());
+		todo.setReminderMinutes(toMinutes(request == null ? null : request.reminderDays()));
 	}
 
 	private TodoEntity requireOwnerTodo(String ownerEmail, Long id) {
@@ -86,10 +86,24 @@ public class TodoService {
 			todo.getDueDate(),
 			todo.getPriority(),
 			todo.isCompleted(),
-			todo.getReminderMinutes(),
+			toDays(todo.getReminderMinutes()),
 			todo.getCreatedAt(),
 			todo.getUpdatedAt()
 		);
+	}
+
+	private Integer toMinutes(Integer reminderDays) {
+		if (reminderDays == null || reminderDays <= 0) {
+			return 0;
+		}
+		return reminderDays * 24 * 60;
+	}
+
+	private Integer toDays(Integer reminderMinutes) {
+		if (reminderMinutes == null || reminderMinutes <= 0) {
+			return 0;
+		}
+		return Math.max(1, reminderMinutes / (24 * 60));
 	}
 
 	private String normalizePriority(String priority) {

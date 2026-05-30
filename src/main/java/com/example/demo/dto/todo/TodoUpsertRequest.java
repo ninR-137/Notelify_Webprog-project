@@ -5,7 +5,7 @@ public record TodoUpsertRequest(
 	String description,
 	String dueDate,
 	String priority,
-	Integer reminderMinutes,
+	Integer reminderDays,
 	Boolean completed
 ) {
 }

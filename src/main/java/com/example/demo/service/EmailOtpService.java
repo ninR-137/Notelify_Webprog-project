@@ -1,5 +1,10 @@
 package com.example.demo.service;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
@@ -21,7 +26,10 @@ public class EmailOtpService {
 	private static final String APP_NAME = "Notelify";
 
 	private final JavaMailSender mailSender;
+	private final HttpClient httpClient;
 	private final String fromEmail;
+	private final String mailApiKey;
+	private final String mailApiUrl;
 	private final Duration otpTtl;
 	private final Map<String, OtpEntry> otpStore = new ConcurrentHashMap<>();
 	private final Map<String, SignupDraft> signupDrafts = new ConcurrentHashMap<>();
@@ -29,22 +37,38 @@ public class EmailOtpService {
 	public EmailOtpService(
 		JavaMailSender mailSender,
 		@Value("${app.mail.from}") String fromEmail,
+		@Value("${app.mail.api-key:}") String mailApiKey,
+		@Value("${app.mail.api-url:https://api.resend.com/emails}") String mailApiUrl,
 		@Value("${app.otp.ttl-minutes:5}") long otpTtlMinutes
 	) {
 		this.mailSender = mailSender;
+		this.httpClient = HttpClient.newBuilder()
+			.connectTimeout(Duration.ofSeconds(10))
+			.build();
 		this.fromEmail = fromEmail;
+		this.mailApiKey = mailApiKey == null ? "" : mailApiKey.trim();
+		this.mailApiUrl = mailApiUrl;
 		this.otpTtl = Duration.ofMinutes(otpTtlMinutes);
 	}
 
-	public void sendSignupOtp(String email, String username, String password) {
+	public String createSignupOtp(String email, String username, String password) {
 		String normalizedEmail = normalize(email);
 		String otp = generateOtp();
 		otpStore.put(normalizedEmail, new OtpEntry(otp, Instant.now().plus(otpTtl)));
 		signupDrafts.put(normalizedEmail, new SignupDraft(username, password));
+		return otp;
+	}
 
+	public void sendSignupOtpEmail(String email, String username, String otp) {
 		String subject = APP_NAME + " verification code: " + otp;
 		String html = buildOtpEmailHtml(username, otp, otpTtl.toMinutes());
-		sendHtmlEmail(normalizedEmail, subject, html);
+		sendHtmlEmail(normalize(email), subject, html);
+	}
+
+	public String sendSignupOtp(String email, String username, String password) {
+		String otp = createSignupOtp(email, username, password);
+		sendSignupOtpEmail(email, username, otp);
+		return otp;
 	}
 
 	public SignupDraft verifySignupOtp(String email, String otp) {
@@ -83,6 +107,14 @@ public class EmailOtpService {
 	}
 
 	private void sendHtmlEmail(String to, String subject, String html) {
+		if (!mailApiKey.isBlank()) {
+			sendHtmlEmailViaApi(to, subject, html);
+			return;
+		}
+		sendHtmlEmailViaSmtp(to, subject, html);
+	}
+
+	private void sendHtmlEmailViaSmtp(String to, String subject, String html) {
 		try {
 			MimeMessage message = mailSender.createMimeMessage();
 			MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
@@ -94,6 +126,45 @@ public class EmailOtpService {
 		} catch (MessagingException ex) {
 			throw new IllegalStateException("Failed to send email", ex);
 		}
+	}
+
+	private void sendHtmlEmailViaApi(String to, String subject, String html) {
+		String payload = "{" +
+			"\"from\":\"" + escapeJson(fromEmail) + "\"," +
+			"\"to\":[\"" + escapeJson(to) + "\"]," +
+			"\"subject\":\"" + escapeJson(subject) + "\"," +
+			"\"html\":\"" + escapeJson(html) + "\"" +
+		"}";
+
+		HttpRequest request = HttpRequest.newBuilder(URI.create(mailApiUrl))
+			.timeout(Duration.ofSeconds(15))
+			.header("Authorization", "Bearer " + mailApiKey)
+			.header("Content-Type", "application/json")
+			.POST(HttpRequest.BodyPublishers.ofString(payload))
+			.build();
+
+		try {
+			HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+			int status = response.statusCode();
+			if (status >= 200 && status < 300) {
+				return;
+			}
+			throw new IllegalStateException("Failed to send email via HTTPS API. Status=" + status);
+		} catch (IOException ex) {
+			throw new IllegalStateException("Failed to send email via HTTPS API", ex);
+		} catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			throw new IllegalStateException("Email send was interrupted", ex);
+		}
+	}
+
+	private String escapeJson(String input) {
+		return input
+			.replace("\\", "\\\\")
+			.replace("\"", "\\\"")
+			.replace("\n", "\\n")
+			.replace("\r", "\\r")
+			.replace("\t", "\\t");
 	}
 
 	private String buildOtpEmailHtml(String username, String otp, long expiresMinutes) {

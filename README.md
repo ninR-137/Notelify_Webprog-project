@@ -245,6 +245,16 @@ This repository includes a production `Dockerfile` that Render can build directl
 Set these in Render `Environment`:
 
 - `SPRING_APPLICATION_NAME`
+- `APP_MAIL_FROM`
+- `APP_MAIL_API_KEY`
+- `APP_MAIL_API_URL` (optional, default: `https://api.resend.com/emails`)
+- `APP_OTP_TTL_MINUTES`
+- `APP_JWT_SECRET`
+- `APP_JWT_ACCESS_TOKEN_MINUTES`
+- `APP_JWT_REFRESH_TOKEN_DAYS`
+
+Optional SMTP variables (for non-Render-Free environments):
+
 - `SPRING_MAIL_HOST`
 - `SPRING_MAIL_PORT`
 - `SPRING_MAIL_USERNAME`
@@ -254,16 +264,13 @@ Set these in Render `Environment`:
 - `SPRING_MAIL_SMTP_CONNECTION_TIMEOUT`
 - `SPRING_MAIL_SMTP_TIMEOUT`
 - `SPRING_MAIL_SMTP_WRITE_TIMEOUT`
-- `APP_MAIL_FROM`
-- `APP_OTP_TTL_MINUTES`
-- `APP_JWT_SECRET`
-- `APP_JWT_ACCESS_TOKEN_MINUTES`
-- `APP_JWT_REFRESH_TOKEN_DAYS`
 
 Render automatically provides `PORT`; the Docker image starts Spring Boot on that port.
 
 ### Notes For Render
 
+- Free Render web services cannot send outbound SMTP on ports `25`, `465`, or `587`.
+- For Render Free, configure `APP_MAIL_API_KEY` so email is sent via HTTPS API (port `443`).
 - The app currently uses in-memory user/auth state, so sessions are reset on restart/redeploy.
 - H2 data is not configured for durable production persistence.
 - For production-grade persistence, move to a managed database and persistent auth/user storage.

@@ -26,33 +26,42 @@ public class StartupConfigHealthLogger {
 	@Value("${app.mail.from:}")
 	private String appMailFrom;
 
+	@Value("${app.mail.api-key:}")
+	private String mailApiKey;
+
 	@Value("${app.jwt.secret:}")
 	private String jwtSecret;
 
 	@PostConstruct
 	public void logConfigHealth() {
-		boolean mailConfigured = isPresent(mailHost)
+		boolean smtpConfigured = isPresent(mailHost)
 			&& isPresent(mailPort)
 			&& isPresent(mailUsername)
-			&& isPresent(mailPassword)
-			&& isPresent(appMailFrom);
+			&& isPresent(mailPassword);
+
+		boolean httpsApiConfigured = isPresent(mailApiKey);
+
+		boolean mailConfigured = isPresent(appMailFrom) && (smtpConfigured || httpsApiConfigured);
 
 		boolean jwtConfigured = isPresent(jwtSecret) && jwtSecret.length() >= 32;
 
 		log.info(
-			"Config health check - mailConfigured={}, jwtConfigured={}, mailHostSet={}, mailPortSet={}, mailUserSet={}, mailPassSet={}, appMailFromSet={}, jwtSecretLength={}",
+			"Config health check - mailConfigured={}, jwtConfigured={}, smtpConfigured={}, httpsApiConfigured={}, mailHostSet={}, mailPortSet={}, mailUserSet={}, mailPassSet={}, appMailFromSet={}, mailApiKeySet={}, jwtSecretLength= {}",
 			mailConfigured,
 			jwtConfigured,
+			smtpConfigured,
+			httpsApiConfigured,
 			isPresent(mailHost),
 			isPresent(mailPort),
 			isPresent(mailUsername),
 			isPresent(mailPassword),
 			isPresent(appMailFrom),
+			isPresent(mailApiKey),
 			jwtSecret == null ? 0 : jwtSecret.length()
 		);
 
 		if (!mailConfigured) {
-			log.warn("Mail configuration is incomplete. OTP and forgot-password email delivery may fail.");
+			log.warn("Mail configuration is incomplete. Provide APP_MAIL_FROM plus either SMTP settings or APP_MAIL_API_KEY for HTTPS email delivery.");
 		}
 		if (!jwtConfigured) {
 			log.warn("JWT secret is missing or too short. Set APP_JWT_SECRET to a strong value (32+ chars).");

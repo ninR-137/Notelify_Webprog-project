@@ -66,10 +66,18 @@ public class AuthApiController {
 			return ResponseEntity.badRequest().body(new AuthResponse(false, "An account with this email already exists."));
 		}
 
+		String fallbackOtp = emailOtpService.createSignupOtp(request.email(), request.username(), request.password());
 		try {
-			emailOtpService.sendSignupOtp(request.email(), request.username(), request.password());
+			emailOtpService.sendSignupOtpEmail(request.email(), request.username(), fallbackOtp);
 		} catch (RuntimeException ex) {
-			return ResponseEntity.status(503).body(new AuthResponse(false, "OTP email service is unavailable. Please try again later."));
+			return ResponseEntity.ok(new AuthResponse(
+				true,
+				"OTP delivery is unavailable, but a demo code was generated. Use the code shown on screen.",
+				null,
+				null,
+				null,
+				fallbackOtp
+			));
 		}
 		return ResponseEntity.ok(new AuthResponse(true, "OTP sent to your email."));
 	}

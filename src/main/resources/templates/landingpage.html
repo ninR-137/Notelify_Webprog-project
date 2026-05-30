@@ -941,6 +941,21 @@
     function showError(id) { document.getElementById(id).classList.add('show'); }
     function hideError(id) { document.getElementById(id).classList.remove('show'); }
 
+      function fillOtpInputs(code) {
+        var row = document.getElementById('otpRow');
+        if (!row || !code) {
+          return;
+        }
+        var digits = String(code).replace(/\D/g, '').slice(0, 6);
+        if (digits.length !== 6) {
+          return;
+        }
+        for (var i = 0; i < 6; i++) {
+          row.children[i].value = digits[i];
+          row.children[i].classList.toggle('filled', true);
+        }
+      }
+
     function sendOTP() {
       var email = document.getElementById('signupEmail').value.trim();
       var user = document.getElementById('signupUser').value.trim();
@@ -977,9 +992,15 @@
         document.getElementById('signupStep1').classList.remove('active');
         document.getElementById('signupStep2').classList.add('active');
         document.getElementById('modalTitle').textContent = 'Verify your email';
-        document.getElementById('modalSub').textContent = 'Enter the 6-digit code sent to your email.';
+        document.getElementById('modalSub').textContent = result.data.otpCode
+          ? 'Email delivery is unavailable on this deployment. Use the demo code below.'
+          : 'Enter the 6-digit code sent to your email.';
         setupOTPInputs();
         startOTPTimer();
+        if (result.data.otpCode) {
+          fillOtpInputs(result.data.otpCode);
+          showToast('Email delivery is unavailable. Demo OTP: ' + result.data.otpCode, 'info');
+        }
         showToast('OTP sent to ' + email + '.', 'success');
       }).catch(function () {
         txt.style.display = 'inline';
@@ -1062,6 +1083,10 @@
           return;
         }
         startOTPTimer();
+        if (result.data.otpCode) {
+          fillOtpInputs(result.data.otpCode);
+          showToast('Email delivery is unavailable. Demo OTP: ' + result.data.otpCode, 'info');
+        }
         showToast('OTP resent to ' + authUserEmail + '.', 'info');
       }).catch(function () {
         showToast('Network error while resending OTP.', 'error');

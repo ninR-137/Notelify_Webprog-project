@@ -185,11 +185,9 @@ Create your local `.env` from `.env.example` and provide real values:
 
 Important:
 
-- `.env` is gitignored and should never be committed.
+- `.env` is gitignored please add your own. I added an .env.example as reference.
 - Use a strong random value for `app.jwt.secret`.
 
-Security note:
-Do not commit real credentials or production JWT secrets. Move them to environment variables or a secret manager before deployment.
 
 ## Run Locally
 
@@ -242,7 +240,7 @@ This repository includes a production `Dockerfile` that Render can build directl
 
 ### Required Render Environment Variables
 
-Set these in Render `Environment`:
+Important Environmental Variables:
 
 - `SPRING_APPLICATION_NAME`
 - `APP_MAIL_FROM`
